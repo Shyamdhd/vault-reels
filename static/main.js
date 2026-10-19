@@ -698,7 +698,12 @@ async function submitAddReel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      data = { error: `Server responded with status ${res.status}` };
+    }
     if (res.ok) {
       showToast('Reel saved to Vault!');
       closeAddReelModal();
@@ -710,7 +715,7 @@ async function submitAddReel() {
     }
   } catch (err) {
     console.error('Save error:', err);
-    alert('An error occurred while saving.');
+    alert('An error occurred while saving: ' + (err.message || 'Please check your connection and try again.'));
   }
 }
 
