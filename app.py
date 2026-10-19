@@ -403,7 +403,7 @@ def get_reel(reel_id):
 def parse_instagram_url():
     """Validates Instagram Reel URL and checks for duplicates."""
     data = request.get_json() or {}
-    raw_url = data.get('url', '').strip()
+    raw_url = (data.get('url') or '').strip()
 
     if not raw_url:
         return jsonify({'error': 'URL is required'}), 400
@@ -411,6 +411,20 @@ def parse_instagram_url():
     normalized_url, shortcode = normalize_instagram_url(raw_url)
     if not shortcode and not ('instagram.com' in raw_url):
         return jsonify({'error': 'Please provide a valid Instagram Reel or Post link'}), 400
+
+    # Supabase duplicate check
+    if is_supabase_enabled():
+        try:
+            supa_res = supabase_client.table('reels').select('*, reel_collections(collection_id, collections(*)), reel_tags(tag_id, tags(*))').or_(f"normalized_url.eq.{normalized_url},original_url.eq.{raw_url}").execute().data
+            if supa_res:
+                reel = format_supabase_reel(supa_res[0])
+                return jsonify({
+                    'duplicate': True,
+                    'message': 'This Reel is already saved in your Vault!',
+                    'existing_reel': reel
+                })
+        except Exception as e:
+            print(f"[Supabase duplicate check] {e}")
 
     conn = get_db()
     cursor = conn.cursor()
@@ -461,16 +475,16 @@ def parse_instagram_url():
 @app.route('/api/reels', methods=['POST'])
 def create_reel():
     data = request.get_json() or {}
-    original_url = data.get('original_url', '').strip()
-    title = data.get('title', '').strip()
-    description = data.get('description', '').strip()
-    creator_username = data.get('creator_username', '@creator').strip()
-    thumbnail_url = data.get('thumbnail_url', '').strip()
-    video_url = data.get('video_url', '').strip()
-    media_type = data.get('media_type', 'video')
-    save_status = data.get('save_status', 'saved_video' if video_url else 'saved_link')
+    original_url = (data.get('original_url') or '').strip()
+    title = (data.get('title') or '').strip()
+    description = (data.get('description') or '').strip()
+    creator_username = (data.get('creator_username') or '@creator').strip()
+    thumbnail_url = (data.get('thumbnail_url') or '').strip()
+    video_url = (data.get('video_url') or '').strip() or None
+    media_type = data.get('media_type') or 'video'
+    save_status = data.get('save_status') or ('saved_video' if video_url else 'saved_link')
     collection_id = data.get('collection_id')
-    tags_list = data.get('tags', [])
+    tags_list = data.get('tags') or []
 
     if not title:
         return jsonify({'error': 'Title is required'}), 400
@@ -490,7 +504,7 @@ def create_reel():
             'video_url': video_url,
             'media_type': media_type,
             'save_status': save_status,
-            'duration': data.get('duration', '0:30')
+            'duration': data.get('duration') or '0:30'
         }
         new_supa_reel = insert_supabase_reel(supa_data, collection_id=collection_id, tags=tags_list)
         if new_supa_reel:
@@ -707,10 +721,10 @@ def list_collections():
 @app.route('/api/collections', methods=['POST'])
 def create_collection():
     data = request.get_json() or {}
-    name = data.get('name', '').strip()
-    description = data.get('description', '').strip()
-    color = data.get('color', '#4F46E5').strip()
-    icon = data.get('icon', 'folder').strip()
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    color = (data.get('color') or '#4F46E5').strip()
+    icon = (data.get('icon') or 'folder').strip()
 
     if not name:
         return jsonify({'error': 'Collection name is required'}), 400
