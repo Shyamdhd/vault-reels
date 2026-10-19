@@ -3,8 +3,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+DEFAULT_SUPABASE_URL = "https://lrjhhtkbwztzfcuskrif.supabase.co"
+DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyamhodGtid3p0emZjdXNrcmlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTE2MDQsImV4cCI6MjEwNDQyNzYwNH0.IPOhuBm6VWFcnkQ3EQThS4soTZRDcEBgwLDTorgxSF8"
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or DEFAULT_SUPABASE_URL
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or DEFAULT_SUPABASE_KEY
 
 supabase_client = None
 
