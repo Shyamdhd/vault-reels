@@ -1,0 +1,30 @@
+{
+  "name": "Vault — Save Reels. Find Them Instantly.",
+  "short_name": "Vault",
+  "description": "Premium personal creative inspiration library to save, organize, search, and watch your favorite Instagram Reels.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101828",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=192&h=192&q=80",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=512&h=512&q=80",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "share_url"
+    }
+  }
+}
