@@ -64,7 +64,9 @@ body {
 /* 9:16 Aspect Ratio for Right Preview Video */
 .aspect-reel-player {
   aspect-ratio: 9 / 16;
-  max-height: 480px;
+  width: 100%;
+  height: 520px;
+  max-height: 540px;
 }
 
 /* Shimmer Skeleton loader */
