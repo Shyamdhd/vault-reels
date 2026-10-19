@@ -307,6 +307,12 @@ function selectReel(id) {
 }
 
 // Render Right Preview Panel Details
+function extractInstagramShortcode(url) {
+  if (!url) return null;
+  const match = url.match(/instagram\.com\/(?:reel|p|reels)\/([A-Za-z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
 function renderRightPreview(reel) {
   const container = document.getElementById('rightPreviewContainer');
   if (!container) return;
@@ -334,34 +340,37 @@ function renderRightPreview(reel) {
     mediaPlayerHtml = `
       <div class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
         <video id="previewPlayerVideo" src="${escapeHtml(reel.video_url)}" poster="${escapeHtml(reel.thumbnail_url)}" 
-               controls playsinline loop class="w-full h-full object-cover"></video>
+               controls playsinline loop autoplay class="w-full h-full object-cover"></video>
       </div>
     `;
   } else {
-    mediaPlayerHtml = `
-      <div class="relative w-full aspect-reel-player rounded-2xl bg-slate-900 overflow-hidden shadow-md flex flex-col justify-between p-4 text-white">
-        <img src="${escapeHtml(reel.thumbnail_url)}" alt="Thumbnail" class="absolute inset-0 w-full h-full object-cover opacity-60">
-        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
-        
-        <div class="relative z-10 flex justify-between items-center">
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500 text-white flex items-center gap-1 shadow-sm">
-            <i data-lucide="link" class="w-2.5 h-2.5"></i> Saved Link
-          </span>
-          <span class="text-[10px] text-gray-300 font-mono">${reel.duration || '0:30'}</span>
+    const igCode = extractInstagramShortcode(reel.normalized_url || reel.original_url);
+    if (igCode) {
+      mediaPlayerHtml = `
+        <div class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center border border-gray-100">
+          <iframe 
+            src="https://www.instagram.com/reel/${igCode}/embed/" 
+            class="w-full h-full border-0 rounded-2xl bg-black" 
+            frameborder="0" 
+            scrolling="no" 
+            allowtransparency="true" 
+            allowfullscreen="true" 
+            allow="autoplay; encrypted-media">
+          </iframe>
         </div>
-
-        <div class="relative z-10 text-center py-6">
-          <a href="${escapeHtml(reel.original_url)}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-gray-900 text-xs font-bold shadow-xl hover:bg-gray-100 transition transform hover:scale-105">
-            <i data-lucide="external-link" class="w-3.5 h-3.5 text-pink-600"></i> Open on Instagram
-          </a>
-          <p class="text-[11px] text-gray-300 mt-2">Original Reel preserved in Vault</p>
+      `;
+    } else {
+      mediaPlayerHtml = `
+        <div class="relative w-full aspect-reel-player rounded-2xl bg-slate-900 overflow-hidden shadow-md flex items-center justify-center text-white">
+          <img src="${escapeHtml(reel.thumbnail_url)}" alt="Thumbnail" class="absolute inset-0 w-full h-full object-cover opacity-80">
+          <div class="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center">
+            <div class="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30">
+              <i data-lucide="play" class="w-6 h-6 fill-current ml-0.5"></i>
+            </div>
+          </div>
         </div>
-
-        <div class="relative z-10 text-xs text-gray-300">
-          <p class="font-semibold text-white truncate">${escapeHtml(reel.creator_username || '@instagram')}</p>
-        </div>
-      </div>
-    `;
+      `;
+    }
   }
 
   // Tags list HTML
