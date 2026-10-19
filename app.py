@@ -19,14 +19,29 @@ from supabase_db import (
 
 # Application Setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-DB_PATH = os.path.join(BASE_DIR, 'vault.db')
+IS_SERVERLESS = bool(
+    os.environ.get('VERCEL') or 
+    os.environ.get('VERCEL_ENV') or 
+    os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or 
+    not os.access(BASE_DIR, os.W_OK)
+)
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+if IS_SERVERLESS:
+    UPLOAD_FOLDER = '/tmp/uploads'
+    DB_PATH = '/tmp/vault.db'
+else:
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+    DB_PATH = os.path.join(BASE_DIR, 'vault.db')
+
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except Exception:
+    pass
 
 app = Flask(__name__, 
             template_folder=os.path.join(BASE_DIR, 'templates'),
-            static_folder=os.path.join(BASE_DIR, 'static'))
+            static_folder=os.path.join(BASE_DIR, 'static'),
+            static_url_path='/static')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB limit
 
