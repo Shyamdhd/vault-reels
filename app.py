@@ -5,7 +5,7 @@ import sqlite3
 import urllib.request
 import urllib.parse
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, redirect
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
@@ -13,7 +13,7 @@ load_dotenv()
 from supabase_db import (
     supabase_client, is_supabase_enabled, upload_file_to_supabase,
     get_supabase_reels, get_supabase_reel, insert_supabase_reel,
-    update_supabase_reel, delete_supabase_reel,
+    update_supabase_reel, delete_supabase_reel, format_supabase_reel,
     get_supabase_collections, insert_supabase_collection, delete_supabase_collection
 )
 
@@ -399,9 +399,95 @@ def get_reel(reel_id):
     conn.close()
     return jsonify({'reel': reel})
 
+def extract_reel_media_info(url):
+    """Extracts direct video MP4 URL, thumbnail, creator, and title via yt-dlp."""
+    if not url:
+        return None
+    try:
+        import yt_dlp
+        ydl_opts = {
+            'skip_download': True,
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': False,
+            'socket_timeout': 10
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            video_url = info.get('url')
+            if not video_url and 'formats' in info and info['formats']:
+                for fmt in reversed(info['formats']):
+                    if fmt.get('url') and (fmt.get('vcodec') != 'none' or 'mp4' in fmt.get('ext', '')):
+                        video_url = fmt['url']
+                        break
+                if not video_url:
+                    video_url = info['formats'][-1].get('url')
+
+            thumb = info.get('thumbnail')
+            title = info.get('title')
+            uploader = info.get('uploader') or info.get('channel')
+            creator_handle = f"@{uploader}" if uploader and not uploader.startswith('@') else (uploader or '@instagram_creator')
+            duration_sec = info.get('duration')
+            duration_str = f"0:{int(duration_sec):02d}" if duration_sec else "0:30"
+
+            return {
+                'video_url': video_url,
+                'thumbnail_url': thumb,
+                'title': title,
+                'creator_username': creator_handle,
+                'description': info.get('description'),
+                'duration': duration_str
+            }
+    except Exception as e:
+        print(f"[Media extraction note] {e}")
+        return None
+
+@app.route('/api/reels/<int:reel_id>/video', methods=['GET'])
+def get_reel_video_stream(reel_id):
+    """Returns direct video stream or redirects to resolved MP4 URL."""
+    target_reel = None
+    if is_supabase_enabled():
+        target_reel = get_supabase_reel(reel_id)
+    else:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM reels WHERE id = ?", (reel_id,))
+        row = cursor.fetchone()
+        if row:
+            target_reel = dict(row)
+        conn.close()
+
+    if not target_reel:
+        return jsonify({'error': 'Reel not found'}), 404
+
+    video_url = target_reel.get('video_url')
+    if not video_url:
+        orig = target_reel.get('original_url') or target_reel.get('normalized_url')
+        if orig:
+            info = extract_reel_media_info(orig)
+            if info and info.get('video_url'):
+                video_url = info['video_url']
+                new_thumb = info.get('thumbnail_url') or target_reel.get('thumbnail_url')
+                if is_supabase_enabled():
+                    update_supabase_reel(reel_id, {
+                        'video_url': video_url, 
+                        'save_status': 'saved_video',
+                        'thumbnail_url': new_thumb
+                    })
+                else:
+                    conn = get_db()
+                    conn.execute("UPDATE reels SET video_url = ?, thumbnail_url = ?, save_status = 'saved_video' WHERE id = ?", (video_url, new_thumb, reel_id))
+                    conn.commit()
+                    conn.close()
+
+    if video_url:
+        return redirect(video_url, code=302)
+
+    return jsonify({'error': 'Video stream not available for this reel'}), 404
+
 @app.route('/api/parse-url', methods=['POST'])
 def parse_instagram_url():
-    """Validates Instagram Reel URL and checks for duplicates."""
+    """Validates Instagram Reel URL, checks duplicates, and extracts direct video."""
     data = request.get_json() or {}
     raw_url = (data.get('url') or '').strip()
 
@@ -442,24 +528,23 @@ def parse_instagram_url():
 
     conn.close()
 
-    # Public metadata extraction fallback
+    # Default metadata
     creator_handle = '@instagram_creator'
     title = f"Instagram Creative Reference ({shortcode or 'Reel'})"
     description = "Saved Instagram Reel inspiration. Metadata preserved from shared link."
     thumbnail = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&h=750&q=80"
+    extracted_video_url = None
+    duration = '0:30'
 
-    # Attempt to fetch public oEmbed or OpenGraph if available
-    try:
-        oembed_url = f"https://api.instagram.com/oembed/?url={urllib.parse.quote(normalized_url)}"
-        req = urllib.request.Request(oembed_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            if resp.status == 200:
-                oembed_data = json.loads(resp.read().decode('utf-8'))
-                title = oembed_data.get('title') or title
-                creator_handle = f"@{oembed_data.get('author_name', 'creator')}"
-                thumbnail = oembed_data.get('thumbnail_url') or thumbnail
-    except Exception:
-        pass  # Fallback to generated metadata per requirement
+    # Direct video stream & metadata extraction via yt-dlp
+    media_info = extract_reel_media_info(raw_url) or extract_reel_media_info(normalized_url)
+    if media_info:
+        title = media_info.get('title') or title
+        creator_handle = media_info.get('creator_username') or creator_handle
+        thumbnail = media_info.get('thumbnail_url') or thumbnail
+        extracted_video_url = media_info.get('video_url')
+        description = media_info.get('description') or description
+        duration = media_info.get('duration') or duration
 
     return jsonify({
         'duplicate': False,
@@ -469,7 +554,9 @@ def parse_instagram_url():
         'creator_username': creator_handle,
         'description': description,
         'thumbnail_url': thumbnail,
-        'save_status': 'saved_link'
+        'video_url': extracted_video_url,
+        'duration': duration,
+        'save_status': 'saved_video' if extracted_video_url else 'saved_link'
     })
 
 @app.route('/api/reels', methods=['POST'])
@@ -482,13 +569,21 @@ def create_reel():
     thumbnail_url = (data.get('thumbnail_url') or '').strip()
     video_url = (data.get('video_url') or '').strip() or None
     media_type = data.get('media_type') or 'video'
-    save_status = data.get('save_status') or ('saved_video' if video_url else 'saved_link')
     collection_id = data.get('collection_id')
     tags_list = data.get('tags') or []
 
     if not title:
         return jsonify({'error': 'Title is required'}), 400
 
+    # Auto-extract video stream if not present
+    if not video_url and original_url:
+        media_info = extract_reel_media_info(original_url)
+        if media_info and media_info.get('video_url'):
+            video_url = media_info['video_url']
+            if not thumbnail_url and media_info.get('thumbnail_url'):
+                thumbnail_url = media_info['thumbnail_url']
+
+    save_status = data.get('save_status') or ('saved_video' if video_url else 'saved_link')
     normalized_url, _ = normalize_instagram_url(original_url) if original_url else (None, None)
 
     # Delegate to Supabase if active
