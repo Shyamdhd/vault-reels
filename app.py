@@ -45,7 +45,7 @@ app = Flask(__name__,
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB limit
 
-ALLOWED_EXTENSIONS = {'mp4', 'mov', 'webm', 'mkv', 'jpg', 'jpeg', 'png', 'webp'}
+ALLOWED_EXTENSIONS = {'mp4', 'mov', 'webm', 'mkv', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'}
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -734,13 +734,10 @@ def delete_reel(reel_id):
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    """Direct video upload supporting MP4, MOV, WebM, up to 500MB."""
-    if 'video' not in request.files:
-        return jsonify({'error': 'No video file provided'}), 400
-
-    file = request.files['video']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
+    """Uploads media (video or avatar photo) to Supabase Storage."""
+    file = request.files.get('file') or request.files.get('video') or request.files.get('avatar')
+    if not file or file.filename == '':
+        return jsonify({'error': 'No file provided'}), 400
 
     if file and allowed_file(file.filename):
         filename = secure_filename(f"{int(datetime.utcnow().timestamp())}_{file.filename}")
@@ -750,7 +747,7 @@ def upload_file():
         if is_supabase_enabled():
             try:
                 file_bytes = file.read()
-                content_type = file.content_type or 'video/mp4'
+                content_type = file.content_type or 'application/octet-stream'
                 video_url = upload_file_to_supabase(file_bytes, filename, content_type)
             except Exception as e:
                 print(f"[Supabase Upload Fallback] {e}")
@@ -765,13 +762,14 @@ def upload_file():
         return jsonify({
             'success': True,
             'filename': filename,
+            'url': video_url,
             'video_url': video_url,
             'storage': 'supabase' if is_supabase_enabled() else 'local',
             'save_status': 'saved_video',
-            'message': 'Video uploaded securely to Vault Storage.'
+            'message': 'File uploaded securely to Vault Storage.'
         })
 
-    return jsonify({'error': 'File format not supported. Use MP4, MOV, or WebM.'}), 400
+    return jsonify({'error': 'File format not supported. Use MP4, MOV, WebM, JPG, PNG, or WebP.'}), 400
 
 @app.route('/api/status', methods=['GET'])
 def get_system_status():
