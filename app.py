@@ -997,6 +997,42 @@ def api_auth_demo():
         }
     })
 
+@app.route('/api/auth/profile', methods=['PATCH', 'POST'])
+def update_user_profile():
+    data = request.get_json() or {}
+    display_name = (data.get('display_name') or '').strip()
+    role = (data.get('role') or 'Creator Member').strip()
+    email = (data.get('email') or '').strip()
+    avatar_url = (data.get('avatar_url') or '').strip()
+    user_id = data.get('id') or 'usr_vault_pro'
+
+    if not display_name:
+        return jsonify({'error': 'Display name is required'}), 400
+
+    if is_supabase_enabled():
+        try:
+            profile_data = {
+                'display_name': display_name,
+                'full_name': display_name,
+                'email': email,
+                'avatar_url': avatar_url
+            }
+            supabase_client.table('profiles').upsert({'id': user_id, **profile_data}).execute()
+        except Exception as e:
+            print(f"[Supabase profile update note] {e}")
+
+    return jsonify({
+        'success': True,
+        'user': {
+            'id': user_id,
+            'display_name': display_name,
+            'email': email,
+            'avatar_url': avatar_url,
+            'role': role
+        },
+        'message': 'Profile updated successfully!'
+    })
+
 @app.route('/manifest.json')
 def manifest():
     return send_from_directory(BASE_DIR, 'manifest.json')
