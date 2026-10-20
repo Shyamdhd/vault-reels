@@ -21,6 +21,9 @@ let state = {
 
 // Initialize App on DOM Load
 document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize user session
+  initUserSession();
+
   // Check URL params for PWA Web Share Target
   handleWebShareTarget();
 
@@ -31,6 +34,42 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupGlobalEventListeners();
 });
+
+// User Session Management
+function initUserSession() {
+  const userJson = localStorage.getItem('vault_user');
+  if (userJson) {
+    try {
+      const user = JSON.parse(userJson);
+      updateSidebarUserProfile(user);
+    } catch (e) {
+      console.warn('Session parsing error:', e);
+    }
+  } else {
+    // Default Pro creator profile
+    const defaultUser = {
+      display_name: 'Alex Rivera',
+      email: 'alex@vaultcreative.design',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80',
+      role: 'Pro Library'
+    };
+    updateSidebarUserProfile(defaultUser);
+  }
+}
+
+function updateSidebarUserProfile(user) {
+  const avatarEl = document.getElementById('sidebarUserAvatar');
+  const nameEl = document.getElementById('sidebarUserName');
+  const roleEl = document.getElementById('sidebarUserRole');
+  if (avatarEl && user.avatar_url) avatarEl.src = user.avatar_url;
+  if (nameEl && user.display_name) nameEl.innerText = user.display_name;
+  if (roleEl) roleEl.innerText = user.role || user.email || 'Pro Library';
+}
+
+function handleLogout() {
+  localStorage.removeItem('vault_user');
+  window.location.href = '/login';
+}
 
 // Sync Supabase & Vercel deployment status
 async function checkSystemStatus() {
