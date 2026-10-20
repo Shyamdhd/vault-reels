@@ -39,7 +39,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="/static/styles.css?v=4">
+  <link rel="stylesheet" href="/static/styles.css?v=5">
 </head>
 <body class="bg-[#FAFBFF] text-[#101828] h-screen flex flex-col overflow-hidden selection:bg-indigo-500 selection:text-white">
 
@@ -114,16 +114,21 @@
         </button>
 
         <div class="flex items-center justify-between px-2 py-1">
-          <div class="flex items-center gap-2 overflow-hidden">
-            <img id="sidebarUserAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80" alt="Avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-white/20 shrink-0">
+          <div onclick="openProfileSettingsModal()" class="flex items-center gap-2 overflow-hidden cursor-pointer group flex-1 mr-1" title="Click to Edit Profile">
+            <img id="sidebarUserAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80" alt="Avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-white/20 shrink-0 group-hover:ring-indigo-400 transition">
             <div class="truncate">
-              <p id="sidebarUserName" class="text-xs font-semibold text-white leading-tight truncate">Alex Rivera</p>
+              <p id="sidebarUserName" class="text-xs font-semibold text-white leading-tight truncate group-hover:text-indigo-300 transition">Alex Rivera</p>
               <p id="sidebarUserRole" class="text-[10px] text-gray-400 leading-tight truncate">Pro Library</p>
             </div>
           </div>
-          <button onclick="handleLogout()" class="text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/5 transition" title="Log Out">
-            <i data-lucide="log-out" class="w-4 h-4"></i>
-          </button>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button onclick="openProfileSettingsModal()" class="text-gray-400 hover:text-indigo-400 p-1.5 rounded-lg hover:bg-white/5 transition" title="Edit Profile Settings">
+              <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="handleLogout()" class="text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/5 transition" title="Log Out">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -391,6 +396,106 @@
     </div>
   </div>
 
+  <!-- MODAL: PROFILE SETTINGS & EDIT -->
+  <div id="profileSettingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-overlay">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 border border-gray-200 shadow-2xl modal-content space-y-4">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <i data-lucide="user-cog" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-gray-900">Edit Profile</h3>
+            <p class="text-[11px] text-gray-500">Update your creator identity & profile settings</p>
+          </div>
+        </div>
+        <button onclick="closeProfileSettingsModal()" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Avatar Preview & Preset Picker -->
+      <div class="flex items-center gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
+        <img id="editAvatarPreview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80" alt="Avatar Preview" class="w-14 h-14 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0 shadow-sm">
+        <div class="flex-1 space-y-1">
+          <p class="text-xs font-semibold text-gray-800">Avatar Photo</p>
+          <p class="text-[10px] text-gray-500">Pick a preset or paste a custom photo URL below</p>
+          <div class="flex items-center gap-2 pt-1">
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80')" class="w-7 h-7 rounded-full overflow-hidden border-2 border-transparent hover:border-indigo-600 hover:scale-110 transition shadow-xs" title="Preset 1">
+              <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&h=120&q=80')" class="w-7 h-7 rounded-full overflow-hidden border-2 border-transparent hover:border-indigo-600 hover:scale-110 transition shadow-xs" title="Preset 2">
+              <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&h=120&q=80')" class="w-7 h-7 rounded-full overflow-hidden border-2 border-transparent hover:border-indigo-600 hover:scale-110 transition shadow-xs" title="Preset 3">
+              <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80')" class="w-7 h-7 rounded-full overflow-hidden border-2 border-transparent hover:border-indigo-600 hover:scale-110 transition shadow-xs" title="Preset 4">
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=crop&w=120&h=120&q=80')" class="w-7 h-7 rounded-full overflow-hidden border-2 border-transparent hover:border-indigo-600 hover:scale-110 transition shadow-xs" title="Preset 5">
+              <img src="https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Form -->
+      <form id="profileEditForm" onsubmit="handleSaveProfile(event)" class="space-y-3">
+        
+        <!-- Display Name -->
+        <div class="space-y-1">
+          <label class="block text-xs font-semibold text-gray-700">Display Name</label>
+          <div class="relative">
+            <i data-lucide="user" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="editDisplayNameInput" required placeholder="Shyam Sharma" class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <!-- Role / Title -->
+        <div class="space-y-1">
+          <label class="block text-xs font-semibold text-gray-700">Role / Subtitle</label>
+          <div class="relative">
+            <i data-lucide="award" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="editRoleInput" placeholder="Creator Member, Lead Motion Designer..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="space-y-1">
+          <label class="block text-xs font-semibold text-gray-700">Email Address</label>
+          <div class="relative">
+            <i data-lucide="mail" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="email" id="editEmailInput" placeholder="shyam@vault.design" class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <!-- Custom Avatar URL -->
+        <div class="space-y-1">
+          <label class="block text-xs font-semibold text-gray-700">Custom Avatar Image URL</label>
+          <div class="relative">
+            <i data-lucide="image" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="url" id="editAvatarUrlInput" oninput="updateAvatarPreview(this.value)" placeholder="https://..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeProfileSettingsModal()" class="px-4 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
+            Cancel
+          </button>
+          <button type="submit" id="saveProfileBtn" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Save Profile</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION -->
   <div id="appToast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-xl bg-[#101828] text-white shadow-2xl flex items-center gap-3 border border-slate-700">
     <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
@@ -398,7 +503,7 @@
   </div>
 
   <!-- Main JavaScript App Controller -->
-  <script src="/static/main.js?v=4"></script>
+  <script src="/static/main.js?v=5"></script>
   <script>
     lucide.createIcons();
   </script>
