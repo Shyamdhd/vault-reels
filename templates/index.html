@@ -153,27 +153,79 @@
         <!-- Top Right Actions -->
         <div class="flex items-center gap-3">
           
-          <!-- Supabase & Vercel Live Status Badge -->
-          <div id="systemStatusPill" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-[11px] font-medium text-gray-700" title="System Environment & Database Sync">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span id="systemStatusDbText">Supabase Ready</span>
-            <span class="text-gray-300">|</span>
-            <span id="systemStatusPlatformText" class="text-gray-500">Vercel Ready</span>
-          </div>
-
           <!-- Add Reel Button (Primary CTA) -->
           <button onclick="openAddReelModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold tracking-wide shadow-md shadow-indigo-600/20 transition transform hover:-translate-y-0.5 active:translate-y-0">
             <i data-lucide="plus" class="w-4 h-4"></i>
             <span>ADD REEL</span>
           </button>
 
-          <!-- Notification Bell -->
-          <button class="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition" title="Notifications">
-            <i data-lucide="bell" class="w-4 h-4"></i>
-          </button>
+          <!-- Notification Bell with Interactive Dropdown -->
+          <div class="relative">
+            <button onclick="toggleNotificationsMenu(event)" id="notificationsBellBtn" class="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition relative" title="Notifications">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="unreadNotifDot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+            </button>
 
-          <!-- Settings Button -->
-          <button class="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition" title="Settings">
+            <!-- Notification Dropdown Menu -->
+            <div id="notificationsDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200/90 p-4 z-50 space-y-3">
+              <div class="flex items-center justify-between pb-2.5 border-b border-gray-100">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sm text-gray-900">Notifications</span>
+                  <span id="notifCountBadge" class="text-[10px] font-semibold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">3 new</span>
+                </div>
+                <button type="button" onclick="markAllNotificationsAsRead()" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 transition">
+                  Mark all as read
+                </button>
+              </div>
+
+              <div id="notificationsList" class="space-y-2 max-h-72 overflow-y-auto">
+                <div class="p-2.5 rounded-xl bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 flex items-start gap-3 transition">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="database" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800">Supabase Cloud Connected</p>
+                    <p class="text-[11px] text-gray-500">PostgreSQL database and media storage are live & active.</p>
+                    <span class="text-[10px] text-gray-400 mt-0.5 block">Just now</span>
+                  </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 flex items-start gap-3 transition">
+                  <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="film" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800">Vault Library Ready</p>
+                    <p class="text-[11px] text-gray-500">Save Instagram Reel links or upload 9:16 videos directly.</p>
+                    <span class="text-[10px] text-gray-400 mt-0.5 block">5m ago</span>
+                  </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 flex items-start gap-3 transition">
+                  <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800">Snapchat Avatar Studio</p>
+                    <p class="text-[11px] text-gray-500">Pick Bitmoji, Cartoon, Robot styles or upload your headshot.</p>
+                    <span class="text-[10px] text-gray-400 mt-0.5 block">1h ago</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-gray-100 flex items-center justify-between">
+                <button type="button" onclick="clearNotifications()" class="text-[11px] text-gray-400 hover:text-gray-600 transition">
+                  Clear all
+                </button>
+                <button type="button" onclick="toggleNotificationsMenu()" class="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings Button (Opens Profile & Settings) -->
+          <button onclick="openProfileSettingsModal()" class="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition" title="Profile & Settings">
             <i data-lucide="settings" class="w-4 h-4"></i>
           </button>
         </div>
@@ -619,18 +671,6 @@
 
     </div>
   </div>
-          <button type="button" onclick="closeProfileSettingsModal()" class="px-4 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
-            Cancel
-          </button>
-          <button type="submit" id="saveProfileBtn" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i>
-            <span>Save Profile</span>
-          </button>
-        </div>
-      </form>
-
-    </div>
-  </div>
 
   <!-- TOAST NOTIFICATION -->
   <div id="appToast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-xl bg-[#101828] text-white shadow-2xl flex items-center gap-3 border border-slate-700">
@@ -639,7 +679,7 @@
   </div>
 
   <!-- Main JavaScript App Controller -->
-  <script src="/static/main.js?v=6"></script>
+  <script src="/static/main.js?v=7"></script>
   <script>
     lucide.createIcons();
   </script>
