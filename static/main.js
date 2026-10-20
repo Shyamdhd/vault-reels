@@ -71,6 +71,226 @@ function handleLogout() {
   window.location.href = '/login';
 }
 
+// =========================================================================
+// SNAPCHAT-STYLE AVATAR STUDIO & PROFILE CUSTOMIZATION SYSTEM
+// =========================================================================
+let currentSnapStyle = 'avataaars';
+let currentSnapSeed = 'Felix';
+let currentSnapBgColor = 'fffc00';
+const SNAP_SEEDS = ['Felix', 'Alex', 'Maya', 'Neo', 'Luna', 'Zen', 'Aria', 'Leo', 'Nova', 'Kai', 'Milo', 'Zoe', 'Pixel', 'Harper', 'Orion'];
+const SNAP_STYLES = ['avataaars', 'adventurer', 'bottts', 'micah', 'lorelei'];
+const SNAP_COLORS = ['fffc00', 'b6e3f4', 'c0aede', 'ffd5dc', 'ffdfbf', 'd1d4f9', '10b981', '1e293b'];
+
+function generateSnapUrl(style = currentSnapStyle, seed = currentSnapSeed, color = currentSnapBgColor) {
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${color}`;
+}
+
+function switchAvatarTab(tabName) {
+  const tabs = {
+    snap: { btn: document.getElementById('tabBtnSnap'), content: document.getElementById('tabContentSnap') },
+    presets: { btn: document.getElementById('tabBtnPresets'), content: document.getElementById('tabContentPresets') },
+    url: { btn: document.getElementById('tabBtnUrl'), content: document.getElementById('tabContentUrl') }
+  };
+
+  Object.keys(tabs).forEach(k => {
+    const item = tabs[k];
+    if (!item.btn || !item.content) return;
+    if (k === tabName) {
+      item.content.classList.remove('hidden');
+      item.btn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-white text-indigo-600 shadow-xs flex items-center justify-center gap-1.5';
+    } else {
+      item.content.classList.add('hidden');
+      item.btn.className = 'flex-1 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 rounded-lg transition flex items-center justify-center gap-1.5';
+    }
+  });
+}
+
+function selectSnapStyle(style) {
+  currentSnapStyle = style;
+  document.querySelectorAll('.snap-style-btn').forEach(btn => {
+    if (btn.getAttribute('data-style') === style) {
+      btn.className = 'snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-indigo-500 text-indigo-700 shadow-2xs';
+    } else {
+      btn.className = 'snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-gray-200 text-gray-700 hover:border-gray-300';
+    }
+  });
+
+  applySnapAvatarToPreview();
+}
+
+function selectSnapColor(hexColor) {
+  currentSnapBgColor = hexColor;
+  document.querySelectorAll('.snap-color-btn').forEach(btn => {
+    if (btn.getAttribute('data-color') === hexColor) {
+      btn.classList.add('border-indigo-600', 'ring-2', 'ring-indigo-400/40');
+      btn.classList.remove('border-white');
+    } else {
+      btn.classList.remove('border-indigo-600', 'ring-2', 'ring-indigo-400/40');
+      btn.classList.add('border-white');
+    }
+  });
+
+  applySnapAvatarToPreview();
+}
+
+function setSnapSeed(seed) {
+  currentSnapSeed = seed;
+  const seedInput = document.getElementById('snapSeedInput');
+  if (seedInput) seedInput.value = seed;
+  applySnapAvatarToPreview();
+}
+
+function onSnapSeedInput(val) {
+  currentSnapSeed = val.trim() || 'Alex';
+  applySnapAvatarToPreview();
+}
+
+function randomizeSnapSeed() {
+  const randomSeed = SNAP_SEEDS[Math.floor(Math.random() * SNAP_SEEDS.length)];
+  setSnapSeed(randomSeed);
+}
+
+function randomizeSnapAvatar() {
+  currentSnapStyle = SNAP_STYLES[Math.floor(Math.random() * SNAP_STYLES.length)];
+  currentSnapSeed = SNAP_SEEDS[Math.floor(Math.random() * SNAP_SEEDS.length)];
+  currentSnapBgColor = SNAP_COLORS[Math.floor(Math.random() * SNAP_COLORS.length)];
+
+  selectSnapStyle(currentSnapStyle);
+  selectSnapColor(currentSnapBgColor);
+  const seedInput = document.getElementById('snapSeedInput');
+  if (seedInput) seedInput.value = currentSnapSeed;
+
+  switchAvatarTab('snap');
+  applySnapAvatarToPreview();
+  showToast('🎲 Generated new Snapchat avatar!');
+}
+
+function applySnapAvatarToPreview() {
+  const url = generateSnapUrl(currentSnapStyle, currentSnapSeed, currentSnapBgColor);
+  const avatarInput = document.getElementById('editAvatarUrlInput');
+  const avatarPreview = document.getElementById('editAvatarPreview');
+  const badge = document.getElementById('avatarTypeBadge');
+  const status = document.getElementById('avatarUploadStatus');
+
+  if (avatarInput) avatarInput.value = url;
+  if (avatarPreview) avatarPreview.src = url;
+  if (badge) {
+    badge.innerText = 'Snap Avatar';
+    badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800';
+  }
+  if (status) {
+    status.innerText = `Snapchat style: ${currentSnapStyle} (${currentSnapSeed})`;
+  }
+}
+
+function setAvatarPreset(url) {
+  const avatarInput = document.getElementById('editAvatarUrlInput');
+  const avatarPreview = document.getElementById('editAvatarPreview');
+  const badge = document.getElementById('avatarTypeBadge');
+  const status = document.getElementById('avatarUploadStatus');
+
+  if (avatarInput) avatarInput.value = url;
+  if (avatarPreview) avatarPreview.src = url;
+  if (badge) {
+    badge.innerText = 'Photo Preset';
+    badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-800';
+  }
+  if (status) {
+    status.innerText = 'Using curated creator headshot.';
+  }
+}
+
+function onDirectUrlInput(url) {
+  const avatarInput = document.getElementById('editAvatarUrlInput');
+  const avatarPreview = document.getElementById('editAvatarPreview');
+  const badge = document.getElementById('avatarTypeBadge');
+
+  if (avatarInput) avatarInput.value = url;
+  if (avatarPreview && url && url.startsWith('http')) {
+    avatarPreview.src = url;
+  }
+  if (badge) {
+    badge.innerText = 'Direct URL';
+    badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-800';
+  }
+}
+
+async function handleAvatarFileUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+  if (!validTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) {
+    alert('Please upload a valid image file (JPG, PNG, WebP, GIF, or SVG).');
+    return;
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    alert('Image file is too large. Maximum size is 10 MB.');
+    return;
+  }
+
+  const avatarPreview = document.getElementById('editAvatarPreview');
+  const avatarInput = document.getElementById('editAvatarUrlInput');
+  const statusText = document.getElementById('avatarUploadStatus');
+  const badge = document.getElementById('avatarTypeBadge');
+  const saveBtn = document.getElementById('saveProfileBtn');
+
+  // Instant local preview
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (avatarPreview && e.target?.result) {
+      avatarPreview.src = e.target.result;
+    }
+  };
+  reader.readAsDataURL(file);
+
+  if (statusText) {
+    statusText.innerHTML = '<span class="text-indigo-600 font-semibold animate-pulse">Uploading photo to Vault Storage...</span>';
+  }
+  if (badge) {
+    badge.innerText = 'Uploading...';
+    badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-700';
+  }
+  if (saveBtn) saveBtn.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Upload failed');
+    }
+
+    const uploadedUrl = data.url || data.video_url;
+    if (avatarInput) avatarInput.value = uploadedUrl;
+    if (avatarPreview) avatarPreview.src = uploadedUrl;
+    if (badge) {
+      badge.innerText = 'Uploaded Photo';
+      badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800';
+    }
+    if (statusText) {
+      statusText.innerText = 'Photo uploaded securely to Vault Storage!';
+    }
+    showToast('Photo uploaded successfully!');
+  } catch (err) {
+    console.error('Avatar upload error:', err);
+    if (statusText) {
+      statusText.innerHTML = `<span class="text-red-500 font-semibold">Upload failed: ${err.message}</span>`;
+    }
+    showToast('Failed to upload image. Please try again.');
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+    event.target.value = '';
+  }
+}
+
 // Profile Settings Modal Handlers
 function openProfileSettingsModal() {
   let user = {
@@ -91,13 +311,36 @@ function openProfileSettingsModal() {
   const roleInput = document.getElementById('editRoleInput');
   const emailInput = document.getElementById('editEmailInput');
   const avatarInput = document.getElementById('editAvatarUrlInput');
+  const directUrlInput = document.getElementById('directAvatarUrlInput');
   const avatarPreview = document.getElementById('editAvatarPreview');
+  const badge = document.getElementById('avatarTypeBadge');
 
   if (nameInput) nameInput.value = user.display_name || '';
   if (roleInput) roleInput.value = user.role || '';
   if (emailInput) emailInput.value = user.email || '';
   if (avatarInput) avatarInput.value = user.avatar_url || '';
+  if (directUrlInput) directUrlInput.value = user.avatar_url || '';
   if (avatarPreview && user.avatar_url) avatarPreview.src = user.avatar_url;
+
+  // Detect avatar type
+  if (user.avatar_url && user.avatar_url.includes('api.dicebear.com')) {
+    if (badge) {
+      badge.innerText = 'Snap Avatar';
+      badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800';
+    }
+    switchAvatarTab('snap');
+  } else if (user.avatar_url && user.avatar_url.includes('images.unsplash.com')) {
+    if (badge) {
+      badge.innerText = 'Photo Preset';
+      badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-800';
+    }
+    switchAvatarTab('presets');
+  } else if (user.avatar_url && user.avatar_url.includes('supabase.co')) {
+    if (badge) {
+      badge.innerText = 'Uploaded Photo';
+      badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800';
+    }
+  }
 
   const modal = document.getElementById('profileSettingsModal');
   if (modal) modal.classList.remove('hidden');
@@ -107,13 +350,6 @@ function openProfileSettingsModal() {
 function closeProfileSettingsModal() {
   const modal = document.getElementById('profileSettingsModal');
   if (modal) modal.classList.add('hidden');
-}
-
-function setAvatarPreset(url) {
-  const avatarInput = document.getElementById('editAvatarUrlInput');
-  const avatarPreview = document.getElementById('editAvatarPreview');
-  if (avatarInput) avatarInput.value = url;
-  if (avatarPreview) avatarPreview.src = url;
 }
 
 function updateAvatarPreview(url) {
@@ -156,7 +392,11 @@ async function handleSaveProfile(e) {
   localStorage.setItem('vault_user', JSON.stringify(user));
   updateSidebarUserProfile(user);
 
-  if (saveBtn) saveBtn.disabled = true;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Saving...</span>';
+    if (window.lucide) lucide.createIcons();
+  }
 
   // Sync with backend API
   try {
@@ -168,7 +408,11 @@ async function handleSaveProfile(e) {
   } catch (err) {
     console.warn('Profile sync note:', err);
   } finally {
-    if (saveBtn) saveBtn.disabled = false;
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i><span>Save Profile</span>';
+      if (window.lucide) lucide.createIcons();
+    }
   }
 
   closeProfileSettingsModal();
