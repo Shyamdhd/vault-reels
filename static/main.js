@@ -1202,6 +1202,56 @@ function showToast(msg) {
   setTimeout(() => toast.classList.add('hidden'), 3000);
 }
 
+// Notifications System
+function toggleNotificationsMenu(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById('notificationsDropdown');
+  if (!dropdown) return;
+  const isHidden = dropdown.classList.contains('hidden');
+  if (isHidden) {
+    dropdown.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  } else {
+    dropdown.classList.add('hidden');
+  }
+}
+
+function markAllNotificationsAsRead() {
+  const dot = document.getElementById('unreadNotifDot');
+  const badge = document.getElementById('notifCountBadge');
+  if (dot) dot.classList.add('hidden');
+  if (badge) {
+    badge.innerText = '0 new';
+    badge.className = 'text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full';
+  }
+  document.querySelectorAll('#notificationsList > div').forEach(item => {
+    item.classList.remove('bg-indigo-50/50', 'border-indigo-100/50');
+    item.classList.add('bg-white', 'border-gray-100');
+  });
+  showToast('All notifications marked as read');
+}
+
+function clearNotifications() {
+  const list = document.getElementById('notificationsList');
+  const dot = document.getElementById('unreadNotifDot');
+  const badge = document.getElementById('notifCountBadge');
+  if (dot) dot.classList.add('hidden');
+  if (badge) {
+    badge.innerText = '0';
+    badge.className = 'text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full';
+  }
+  if (list) {
+    list.innerHTML = `
+      <div class="py-8 text-center text-gray-400 space-y-1">
+        <i data-lucide="bell-off" class="w-6 h-6 mx-auto text-gray-300"></i>
+        <p class="text-xs font-medium">No new notifications</p>
+        <p class="text-[10px] text-gray-400">You are completely up to date!</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
 // Global Event Listeners & Shortcuts
 function setupGlobalEventListeners() {
   // Global Search Input with debounce
@@ -1250,6 +1300,17 @@ function setupGlobalEventListeners() {
     });
   }
 
+  // Close notifications dropdown on outside click
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('notificationsDropdown');
+    const bellBtn = document.getElementById('notificationsBellBtn');
+    if (dropdown && !dropdown.classList.contains('hidden')) {
+      if (!dropdown.contains(e.target) && !bellBtn?.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    }
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     // Cmd/Ctrl + K or / to focus search
@@ -1266,6 +1327,9 @@ function setupGlobalEventListeners() {
       closeAddReelModal();
       closeNewCollectionModal();
       closePwaShortcutModal();
+      closeProfileSettingsModal();
+      const dropdown = document.getElementById('notificationsDropdown');
+      if (dropdown) dropdown.classList.add('hidden');
     }
     // Space toggles video playback
     if (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
