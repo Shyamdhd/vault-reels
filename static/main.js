@@ -334,44 +334,14 @@ function renderRightPreview(reel) {
   const primaryCol = reel.primary_collection;
   const colColor = primaryCol?.color || '#4F46E5';
 
-  // Video or Fallback Link Preview
-  let mediaPlayerHtml = '';
-  if (reel.video_url) {
-    mediaPlayerHtml = `
-      <div class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
-        <video id="previewPlayerVideo" src="${escapeHtml(reel.video_url)}" poster="${escapeHtml(reel.thumbnail_url)}" 
-               controls playsinline loop autoplay class="w-full h-full object-cover"></video>
-      </div>
-    `;
-  } else {
-    const igCode = extractInstagramShortcode(reel.normalized_url || reel.original_url);
-    if (igCode) {
-      mediaPlayerHtml = `
-        <div class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center border border-gray-100">
-          <iframe 
-            src="https://www.instagram.com/reel/${igCode}/embed/" 
-            class="w-full h-full border-0 rounded-2xl bg-black" 
-            frameborder="0" 
-            scrolling="no" 
-            allowtransparency="true" 
-            allowfullscreen="true" 
-            allow="autoplay; encrypted-media">
-          </iframe>
-        </div>
-      `;
-    } else {
-      mediaPlayerHtml = `
-        <div class="relative w-full aspect-reel-player rounded-2xl bg-slate-900 overflow-hidden shadow-md flex items-center justify-center text-white">
-          <img src="${escapeHtml(reel.thumbnail_url)}" alt="Thumbnail" class="absolute inset-0 w-full h-full object-cover opacity-80">
-          <div class="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center">
-            <div class="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30">
-              <i data-lucide="play" class="w-6 h-6 fill-current ml-0.5"></i>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-  }
+  // Native Video Player for All Reels
+  const videoSrc = reel.video_url || `/api/reels/${reel.id}/video`;
+  const mediaPlayerHtml = `
+    <div class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
+      <video id="previewPlayerVideo" src="${escapeHtml(videoSrc)}" poster="${escapeHtml(reel.thumbnail_url || '')}" 
+             controls playsinline loop autoplay class="w-full h-full object-cover"></video>
+    </div>
+  `;
 
   // Tags list HTML
   let tagsHtml = '';
@@ -662,9 +632,11 @@ async function handleUrlValidation(url) {
     const titleInput = document.getElementById('reelTitleInput');
     const creatorInput = document.getElementById('reelCreatorInput');
     const descInput = document.getElementById('reelDescInput');
+    const videoInput = document.getElementById('uploadedVideoUrlInput');
     if (titleInput && !titleInput.value) titleInput.value = data.title;
     if (creatorInput && !creatorInput.value) creatorInput.value = data.creator_username;
     if (descInput && !descInput.value) descInput.value = data.description;
+    if (videoInput && data.video_url) videoInput.value = data.video_url;
 
     if (window.lucide) lucide.createIcons();
   } catch (err) {
@@ -680,7 +652,7 @@ async function submitAddReel() {
   const desc = document.getElementById('reelDescInput')?.value.trim();
   const collectionId = document.getElementById('addReelCollectionSelect')?.value;
   const rawTags = document.getElementById('reelTagsInput')?.value.trim();
-  const videoUrl = document.getElementById('uploadedVideoUrlInput')?.value.trim();
+  const videoUrl = document.getElementById('uploadedVideoUrlInput')?.value.trim() || verifiedUrlData?.video_url;
 
   if (!title) {
     alert('Please enter a title for the reference.');
