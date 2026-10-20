@@ -71,6 +71,110 @@ function handleLogout() {
   window.location.href = '/login';
 }
 
+// Profile Settings Modal Handlers
+function openProfileSettingsModal() {
+  let user = {
+    display_name: 'Alex Rivera',
+    email: 'alex@vaultcreative.design',
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
+    role: 'Pro Creator'
+  };
+
+  const userJson = localStorage.getItem('vault_user');
+  if (userJson) {
+    try {
+      user = { ...user, ...JSON.parse(userJson) };
+    } catch (e) {}
+  }
+
+  const nameInput = document.getElementById('editDisplayNameInput');
+  const roleInput = document.getElementById('editRoleInput');
+  const emailInput = document.getElementById('editEmailInput');
+  const avatarInput = document.getElementById('editAvatarUrlInput');
+  const avatarPreview = document.getElementById('editAvatarPreview');
+
+  if (nameInput) nameInput.value = user.display_name || '';
+  if (roleInput) roleInput.value = user.role || '';
+  if (emailInput) emailInput.value = user.email || '';
+  if (avatarInput) avatarInput.value = user.avatar_url || '';
+  if (avatarPreview && user.avatar_url) avatarPreview.src = user.avatar_url;
+
+  const modal = document.getElementById('profileSettingsModal');
+  if (modal) modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeProfileSettingsModal() {
+  const modal = document.getElementById('profileSettingsModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function setAvatarPreset(url) {
+  const avatarInput = document.getElementById('editAvatarUrlInput');
+  const avatarPreview = document.getElementById('editAvatarPreview');
+  if (avatarInput) avatarInput.value = url;
+  if (avatarPreview) avatarPreview.src = url;
+}
+
+function updateAvatarPreview(url) {
+  const avatarPreview = document.getElementById('editAvatarPreview');
+  if (avatarPreview && url && url.startsWith('http')) {
+    avatarPreview.src = url;
+  }
+}
+
+async function handleSaveProfile(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('editDisplayNameInput');
+  const roleInput = document.getElementById('editRoleInput');
+  const emailInput = document.getElementById('editEmailInput');
+  const avatarInput = document.getElementById('editAvatarUrlInput');
+  const saveBtn = document.getElementById('saveProfileBtn');
+
+  const displayName = nameInput?.value.trim();
+  const role = roleInput?.value.trim() || 'Creator Member';
+  const email = emailInput?.value.trim() || '';
+  const avatarUrl = avatarInput?.value.trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80';
+
+  if (!displayName) {
+    alert('Please provide a display name');
+    return;
+  }
+
+  let user = {};
+  const userJson = localStorage.getItem('vault_user');
+  if (userJson) {
+    try { user = JSON.parse(userJson); } catch (e) {}
+  }
+
+  user.display_name = displayName;
+  user.role = role;
+  user.email = email;
+  user.avatar_url = avatarUrl;
+
+  // Persist locally
+  localStorage.setItem('vault_user', JSON.stringify(user));
+  updateSidebarUserProfile(user);
+
+  if (saveBtn) saveBtn.disabled = true;
+
+  // Sync with backend API
+  try {
+    await fetch('/api/auth/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
+    });
+  } catch (err) {
+    console.warn('Profile sync note:', err);
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+
+  closeProfileSettingsModal();
+  showToast('Profile updated successfully!');
+}
+
 // Sync Supabase & Vercel deployment status
 async function checkSystemStatus() {
   try {
