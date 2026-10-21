@@ -19,10 +19,27 @@ let state = {
   }
 };
 
+// Centralized Authenticated Fetch Helper
+async function authFetch(url, options = {}) {
+  const token = localStorage.getItem('vault_token');
+  options.headers = options.headers || {};
+  if (token && !options.headers['Authorization']) {
+    options.headers['Authorization'] = `Bearer ${token}`;
+  }
+  options.credentials = 'include';
+  
+  const res = await fetch(url, options);
+  if (res.status === 401 && !url.includes('/api/auth/me')) {
+    console.warn('Session expired or unauthorized. Redirecting to login.');
+    handleLogout();
+  }
+  return res;
+}
+
 // Initialize App on DOM Load
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize user session
-  initUserSession();
+  // Initialize and verify user session
+  await initUserSession();
 
   // Check URL params for PWA Web Share Target
   handleWebShareTarget();
@@ -36,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // User Session Management
-function initUserSession() {
+async function initUserSession() {
   const userJson = localStorage.getItem('vault_user');
   if (userJson) {
     try {
@@ -45,15 +62,26 @@ function initUserSession() {
     } catch (e) {
       console.warn('Session parsing error:', e);
     }
-  } else {
-    // Default Pro creator profile
-    const defaultUser = {
-      display_name: 'Alex Rivera',
-      email: 'alex@vaultcreative.design',
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80',
-      role: 'Pro Library'
-    };
-    updateSidebarUserProfile(defaultUser);
+  }
+
+  // Verify server session
+  try {
+    const res = await authFetch('/api/auth/me');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        localStorage.setItem('vault_user', JSON.stringify(data.user));
+        updateSidebarUserProfile(data.user);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Auth check skipped:', e);
+  }
+
+  // If no user is logged in, redirect to login page
+  if (!userJson) {
+    window.location.href = '/login';
   }
 }
 
@@ -66,8 +94,23 @@ function updateSidebarUserProfile(user) {
   if (roleEl) roleEl.innerText = user.role || user.email || 'Pro Library';
 }
 
-function handleLogout() {
-  localStorage.removeItem('vault_user');
+async function handleLogout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  } catch (e) {}
+
+  // Clear all user-scoped storage & caches
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('vault_')) localStorage.removeItem(k);
+  });
+  sessionStorage.clear();
+
+  // Reset in-memory state
+  state.reels = [];
+  state.collections = [];
+  state.tags = [];
+  state.selectedReel = null;
+
   window.location.href = '/login';
 }
 
@@ -258,7 +301,7 @@ async function handleAvatarFileUpload(event) {
     const formData = new FormData();
     formData.append('file', file);
 
-    const res = await fetch('/api/upload', {
+    const res = await authFetch('/api/upload', {
       method: 'POST',
       body: formData
     });
@@ -400,7 +443,7 @@ async function handleSaveProfile(e) {
 
   // Sync with backend API
   try {
-    await fetch('/api/auth/profile', {
+    await authFetch('/api/auth/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(user)
@@ -422,7 +465,7 @@ async function handleSaveProfile(e) {
 // Sync Supabase & Vercel deployment status
 async function checkSystemStatus() {
   try {
-    const res = await fetch('/api/status');
+    const res = await authFetch('/api/status');
     const data = await res.json();
     const dbText = document.getElementById('systemStatusDbText');
     const platformText = document.getElementById('systemStatusPlatformText');
@@ -542,7 +585,7 @@ function handleWebShareTarget() {
 // Fetch Collections from Backend
 async function loadCollections() {
   try {
-    const res = await fetch('/api/collections');
+    const res = await authFetch('/api/collections');
     const data = await res.json();
     state.collections = data.collections || [];
     renderCollectionsSidebar();
@@ -555,7 +598,7 @@ async function loadCollections() {
 // Fetch Tags from Backend
 async function loadTags() {
   try {
-    const res = await fetch('/api/tags');
+    const res = await authFetch('/api/tags');
     const data = await res.json();
     state.tags = data.tags || [];
   } catch (err) {
@@ -591,7 +634,7 @@ async function loadReels() {
       params.append('sort', state.sort);
     }
 
-    const res = await fetch(`/api/reels?${params.toString()}`);
+    const res = await authFetch(`/api/reels?${params.toString()}`);
     const data = await res.json();
     state.reels = data.reels || [];
 
@@ -975,7 +1018,7 @@ async function toggleArchive(reelId) {
 async function deleteReel(reelId) {
   if (!confirm('Are you sure you want to remove this reel from Vault?')) return;
   try {
-    const res = await fetch(`/api/reels/${reelId}`, { method: 'DELETE' });
+    const res = await authFetch(`/api/reels/${reelId}`, { method: 'DELETE' });
     if (res.ok) {
       showToast('Reel deleted from Vault');
       await loadReels();
@@ -989,7 +1032,7 @@ async function deleteReel(reelId) {
 // Update Reel Backend Helper
 async function updateReelBackend(reelId, payload) {
   try {
-    const res = await fetch(`/api/reels/${reelId}`, {
+    const res = await authFetch(`/api/reels/${reelId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1082,7 +1125,7 @@ async function handleUrlValidation(url) {
   `;
 
   try {
-    const res = await fetch('/api/parse-url', {
+    const res = await authFetch('/api/parse-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
@@ -1153,7 +1196,7 @@ async function submitAddReel() {
   };
 
   try {
-    const res = await fetch('/api/reels', {
+    const res = await authFetch('/api/reels', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1193,7 +1236,7 @@ async function handleVideoFileUpload(file) {
   formData.append('video', file);
 
   try {
-    const res = await fetch('/api/upload', {
+    const res = await authFetch('/api/upload', {
       method: 'POST',
       body: formData
     });
@@ -1223,7 +1266,7 @@ async function submitNewCollection() {
   }
 
   try {
-    const res = await fetch('/api/collections', {
+    const res = await authFetch('/api/collections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description: desc, color })
@@ -1245,7 +1288,7 @@ async function submitNewCollection() {
 async function deleteCollection(id, name) {
   if (!confirm(`Delete collection "${name}"? Reels inside will not be deleted.`)) return;
   try {
-    const res = await fetch(`/api/collections/${id}`, { method: 'DELETE' });
+    const res = await authFetch(`/api/collections/${id}`, { method: 'DELETE' });
     if (res.ok) {
       showToast(`Collection "${name}" removed`);
       if (state.activeCollectionId === id) state.activeCollectionId = null;
