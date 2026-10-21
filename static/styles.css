@@ -1,14 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
 
 :root {
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --sidebar-bg: #101828;
-  --main-bg: #FAFBFF;
+  --primary: #7D53FF;
+  --primary-hover: #6C40E8;
+  --accent: #B6FF00;
+  --accent-hover: #A3E600;
+  --sidebar-bg: #242834;
+  --main-bg: #F5F7FA;
   --card-bg: #FFFFFF;
-  --text-primary: #101828;
+  --text-primary: #242834;
   --text-secondary: #64748B;
-  --border-color: #E5E7EB;
+  --border-color: #E2E8F0;
+  --brand-slate: #242834;
+  --brand-lime: #B6FF00;
+  --brand-purple: #7D53FF;
 }
 
 body {
@@ -37,7 +42,10 @@ body {
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: #1E293B;
+  background: #353B4B;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #464F65;
 }
 
 /* Card hover animation */
@@ -47,13 +55,13 @@ body {
 
 .reel-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px -6px rgba(16, 24, 40, 0.08), 0 4px 10px -2px rgba(16, 24, 40, 0.04);
-  border-color: #C7D2FE;
+  box-shadow: 0 12px 28px -6px rgba(36, 40, 52, 0.12), 0 4px 10px -2px rgba(36, 40, 52, 0.06);
+  border-color: #D3C4FF;
 }
 
 .reel-card.active-reel {
-  border-color: #4F46E5 !important;
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25), 0 10px 25px -5px rgba(79, 70, 229, 0.15);
+  border-color: #7D53FF !important;
+  box-shadow: 0 0 0 2px rgba(125, 83, 255, 0.35), 0 10px 25px -5px rgba(125, 83, 255, 0.25);
 }
 
 /* 4:5 Aspect Ratio for Library Thumbnails */
@@ -89,3 +97,14 @@ body {
 .modal-content {
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out;
 }
+
+/* Brand Palette Helpers */
+.bg-vault-slate { background-color: #242834; }
+.bg-vault-lime { background-color: #B6FF00; }
+.bg-vault-purple { background-color: #7D53FF; }
+.text-vault-slate { color: #242834; }
+.text-vault-lime { color: #B6FF00; }
+.text-vault-purple { color: #7D53FF; }
+.border-vault-slate { border-color: #242834; }
+.border-vault-lime { border-color: #B6FF00; }
+.border-vault-purple { border-color: #7D53FF; }
