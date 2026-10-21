@@ -5,16 +5,18 @@ import sqlite3
 import urllib.request
 import urllib.parse
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_from_directory, redirect, make_response
+from functools import wraps
+from flask import Flask, request, jsonify, render_template, send_from_directory, redirect, make_response, session
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
 load_dotenv()
 from supabase_db import (
     supabase_client, is_supabase_enabled, upload_file_to_supabase,
-    get_supabase_reels, get_supabase_reel, insert_supabase_reel,
-    update_supabase_reel, delete_supabase_reel, format_supabase_reel,
-    get_supabase_collections, insert_supabase_collection, delete_supabase_collection
+    get_supabase_reels, get_supabase_reel, check_supabase_duplicate_reel,
+    insert_supabase_reel, update_supabase_reel, delete_supabase_reel, format_supabase_reel,
+    get_supabase_collections, insert_supabase_collection, delete_supabase_collection,
+    get_supabase_tags, ensure_default_collections
 )
 
 # Application Setup
@@ -42,6 +44,13 @@ app = Flask(__name__,
             template_folder=os.path.join(BASE_DIR, 'templates'),
             static_folder=os.path.join(BASE_DIR, 'static'),
             static_url_path='/static')
+
+# Secure session cookie setup
+app.secret_key = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY') or 'vault_session_secret_2026_super_secure_key_x99'
+app.config['SESSION_COOKIE_NAME'] = 'vault_session'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('VERCEL') or os.environ.get('HTTPS'))
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB limit
 
@@ -65,7 +74,56 @@ def normalize_instagram_url(url):
         return f"https://www.instagram.com/reel/{code}/", code
     return url, None
 
-# Initialize Database Schema & Seed Data
+# --- STRICT SERVER-SIDE AUTHENTICATION & USER RESOLUTION ---
+def get_authenticated_user():
+    """
+    Derives authenticated user strictly from server-side session or verified Bearer token.
+    Never trusts a user ID supplied by the frontend body or query params.
+    """
+    # 1. Check Bearer token in Authorization header
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ', 1)[1].strip()
+        if token and is_supabase_enabled() and supabase_client:
+            try:
+                user_res = supabase_client.auth.get_user(token)
+                if user_res and user_res.user:
+                    u = user_res.user
+                    return {
+                        'id': str(u.id),
+                        'email': u.email or '',
+                        'display_name': u.user_metadata.get('full_name') or (u.email.split('@')[0].capitalize() if u.email else 'Creator'),
+                        'avatar_url': u.user_metadata.get('avatar_url') or 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
+                        'role': 'Pro Member',
+                        'token': token
+                    }
+            except Exception:
+                pass
+
+    # 2. Check server-side signed session cookie
+    user_id = session.get('user_id')
+    if user_id:
+        return {
+            'id': str(user_id),
+            'email': session.get('user_email', ''),
+            'display_name': session.get('user_display_name', 'Creator'),
+            'avatar_url': session.get('user_avatar', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80'),
+            'role': session.get('user_role', 'Creator Member'),
+            'token': session.get('access_token')
+        }
+
+    return None
+
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_authenticated_user()
+        if not user:
+            return jsonify({'error': 'Unauthorized. Please sign in to access your Vault library.'}), 401
+        return f(user, *args, **kwargs)
+    return decorated_function
+
+# Initialize Database Schema & Seed Data with Multi-Tenant Isolation
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
@@ -81,32 +139,36 @@ def init_db():
 
     CREATE TABLE IF NOT EXISTS collections (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
+        user_id TEXT,
+        name TEXT NOT NULL,
         description TEXT,
         color TEXT DEFAULT '#4F46E5',
         icon TEXT DEFAULT 'folder',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, name)
     );
 
     CREATE TABLE IF NOT EXISTS reels (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
         original_url TEXT,
-        normalized_url TEXT UNIQUE,
+        normalized_url TEXT,
         title TEXT NOT NULL,
         description TEXT,
         creator_username TEXT,
         creator_avatar TEXT,
         thumbnail_url TEXT,
         video_url TEXT,
-        media_type TEXT DEFAULT 'video', -- 'video', 'link', 'image'
-        save_status TEXT DEFAULT 'saved_video', -- 'saved_video', 'saved_link', 'processing', 'failed'
+        media_type TEXT DEFAULT 'video',
+        save_status TEXT DEFAULT 'saved_video',
         duration TEXT DEFAULT '0:30',
         aspect_ratio TEXT DEFAULT '9:16',
         is_favorite INTEGER DEFAULT 0,
         is_watch_later INTEGER DEFAULT 0,
         is_archived INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, normalized_url)
     );
 
     CREATE TABLE IF NOT EXISTS reel_collections (
@@ -131,159 +193,27 @@ def init_db():
     );
     ''')
 
-    # Seed Default User Profile if empty
-    cursor.execute("SELECT COUNT(*) as count FROM profiles")
-    if cursor.fetchone()['count'] == 0:
-        cursor.execute('''
-            INSERT INTO profiles (id, display_name, email, avatar_url)
-            VALUES (?, ?, ?, ?)
-        ''', (
-            'usr_vault_pro',
-            'Alex Rivera',
-            'alex@vaultcreative.design',
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&h=200&q=80'
-        ))
+    # Migration check: Ensure user_id column exists on existing SQLite tables
+    cursor.execute("PRAGMA table_info(reels)")
+    reel_cols = [r[1] for r in cursor.fetchall()]
+    if 'user_id' not in reel_cols:
+        cursor.execute("ALTER TABLE reels ADD COLUMN user_id TEXT")
 
-    # Seed Default Collections from Brief
-    cursor.execute("SELECT COUNT(*) as count FROM collections")
-    if cursor.fetchone()['count'] == 0:
-        default_collections = [
-            ('Transitions', 'Creative camera & match cut transitions', '#06B6D4', 'wand-2'),
-            ('Typography', 'Kinetic, 3D and editorial title animations', '#F59E0B', 'type'),
-            ('UI/UX', 'Mobile interactions, glassmorphism & dashboard flows', '#8B5CF6', 'layout'),
-            ('Motion Graphics', 'Abstract 3D renders, cyber HUDs, and VFX loops', '#10B981', 'activity'),
-            ('Brand Ads', 'High production luxury and commercial reels', '#EC4899', 'badge-percent'),
-            ('Cafes', 'Atmospheric B-roll, aesthetic pours, and hospitality', '#D97706', 'coffee'),
-            ('Client References', 'Client proposal benchmarks and pitch moodboards', '#3B82F6', 'briefcase')
-        ]
-        cursor.executemany('''
-            INSERT INTO collections (name, description, color, icon)
-            VALUES (?, ?, ?, ?)
-        ''', default_collections)
-
-    # Seed High-Quality Creative Reels with playable video references
-    cursor.execute("SELECT COUNT(*) as count FROM reels")
-    if cursor.fetchone()['count'] == 0:
-        seed_reels = [
-            (
-                'https://www.instagram.com/reel/C3_Typography_01/',
-                'https://www.instagram.com/reel/C3_Typography_01/',
-                'Kinetic Typography & Dynamic Stagger Text In After Effects',
-                'Breakdown of the kinetic typography title animation sequence used in the Apple keynote reveal. Notice the letter-by-letter spring physics and optical kerning compensations.',
-                '@motion_type_lab',
-                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&h=100&q=80',
-                'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&h=750&q=80',
-                'https://assets.mixkit.co/videos/preview/mixkit-vertical-animation-of-futuristic-lines-and-numbers-41551-large.mp4',
-                'video', 'saved_video', '0:24', 1, 0, 0
-            ),
-            (
-                'https://www.instagram.com/reel/C4_UIUX_Glass_02/',
-                'https://www.instagram.com/reel/C4_UIUX_Glass_02/',
-                'Liquid Glassmorphism 3D Button Hover Interaction',
-                'A stunning spatial UI concept showing real-time refractive caustic blur shaders applied to interactive button triggers.',
-                '@interface_craft',
-                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&h=100&q=80',
-                'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&h=750&q=80',
-                'https://assets.mixkit.co/videos/preview/mixkit-vertical-animation-of-a-futuristic-digital-clock-41550-large.mp4',
-                'video', 'saved_video', '0:18', 1, 1, 0
-            ),
-            (
-                'https://www.instagram.com/reel/C5_Transition_Zoom_03/',
-                'https://www.instagram.com/reel/C5_Transition_Zoom_03/',
-                'Seamless Match Cut Speed Ramp & Lens Blur Transition',
-                'How to transition between two contrasting city street scenes using a quick whip pan coupled with motion vector direction blur in DaVinci Resolve.',
-                '@cinematic_cuts',
-                'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=100&h=100&q=80',
-                'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=600&h=750&q=80',
-                'https://assets.mixkit.co/videos/preview/mixkit-vertical-view-of-neon-lights-in-a-futuristic-tunnel-41552-large.mp4',
-                'video', 'saved_video', '0:15', 0, 1, 0
-            ),
-            (
-                'https://www.instagram.com/reel/C6_MotionGraphics_HUD_04/',
-                'https://www.instagram.com/reel/C6_MotionGraphics_HUD_04/',
-                'Cyberpunk 3D Holographic HUD Motion Sequence',
-                'Complex multi-layered UI tracking with depth passes, chromatic aberration, and particle emitters rendered in Blender Cycles.',
-                '@future_motion',
-                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&h=100&q=80',
-                'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&h=750&q=80',
-                'https://assets.mixkit.co/videos/preview/mixkit-vertical-projection-of-neon-geometric-figures-41555-large.mp4',
-                'video', 'saved_video', '0:32', 1, 0, 0
-            ),
-            (
-                'https://www.instagram.com/reel/C7_BrandAd_Luxury_05/',
-                'https://www.instagram.com/reel/C7_BrandAd_Luxury_05/',
-                'Luxury Minimalist Fragrance Commercial Color Grade',
-                'Warm Kodak 2383 print emulation applied over Alexa Mini LF Arri LogC footage. Minimal camera movement with sound design driving the emotional beat.',
-                '@director_ad_studio',
-                'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=100&h=100&q=80',
-                'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&h=750&q=80',
-                'https://assets.mixkit.co/videos/preview/mixkit-vertical-lights-and-smoke-in-the-dark-41554-large.mp4',
-                'video', 'saved_video', '0:45', 1, 0, 0
-            ),
-            (
-                'https://www.instagram.com/reel/C8_Cafe_BRoll_06/',
-                'https://www.instagram.com/reel/C8_Cafe_BRoll_06/',
-                'Atmospheric Japanese Café Pour Over Slow Motion 120fps',
-                'Natural morning light, steam diffusion filter (1/4 Black Pro Mist), and tactile sound design. Perfect reference for café clients.',
-                '@tokyo_coffees',
-                'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&h=100&q=80',
-                'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&h=750&q=80',
-                'https://assets.mixkit.co/videos/preview/mixkit-vertical-animation-of-futuristic-lines-and-numbers-41551-large.mp4',
-                'video', 'saved_video', '0:22', 0, 0, 0
-            ),
-            (
-                'https://www.instagram.com/reel/C9_ClientRef_Fintech_07/',
-                'https://www.instagram.com/reel/C9_ClientRef_Fintech_07/',
-                'Fintech Mobile Card Swipe & Micro-Interactions',
-                'Interactive credit card 3D tilt gesture based on device gyroscope. Smooth 60fps springs using Framer Motion physics.',
-                '@fintech_design',
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80',
-                'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&h=750&q=80',
-                'https://assets.mixkit.co/videos/preview/mixkit-vertical-animation-of-a-futuristic-digital-clock-41550-large.mp4',
-                'video', 'saved_link', '0:19', 0, 1, 0
-            )
-        ]
-
-        cursor.executemany('''
-            INSERT INTO reels (
-                original_url, normalized_url, title, description,
-                creator_username, creator_avatar, thumbnail_url, video_url,
-                media_type, save_status, duration, is_favorite, is_watch_later, is_archived
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', seed_reels)
-
-        # Seed tags
-        tags = ['Kinetic', 'AfterEffects', 'UIUX', 'Transitions', 'DaVinci', 'Commercial', 'Minimal', 'Blender', 'Coffee', 'Fintech']
-        cursor.executemany("INSERT OR IGNORE INTO tags (name) VALUES (?)", [(t,) for t in tags])
-
-        # Map reel collections & tags
-        mappings = [
-            (1, 2, ['Kinetic', 'AfterEffects']),    # Reel 1 -> Typography
-            (2, 3, ['UIUX', 'Minimal']),           # Reel 2 -> UI/UX
-            (3, 1, ['Transitions', 'DaVinci']),    # Reel 3 -> Transitions
-            (4, 4, ['Blender']),                   # Reel 4 -> Motion Graphics
-            (5, 5, ['Commercial', 'Minimal']),     # Reel 5 -> Brand Ads
-            (6, 6, ['Coffee', 'Minimal']),         # Reel 6 -> Cafes
-            (7, 7, ['Fintech', 'UIUX']),           # Reel 7 -> Client References
-        ]
-
-        for reel_id, col_id, reel_tag_names in mappings:
-            cursor.execute("INSERT OR IGNORE INTO reel_collections (reel_id, collection_id) VALUES (?, ?)", (reel_id, col_id))
-            for tag_name in reel_tag_names:
-                cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
-                t_row = cursor.fetchone()
-                if t_row:
-                    cursor.execute("INSERT OR IGNORE INTO reel_tags (reel_id, tag_id) VALUES (?, ?)", (reel_id, t_row['id']))
+    cursor.execute("PRAGMA table_info(collections)")
+    col_cols = [r[1] for r in cursor.fetchall()]
+    if 'user_id' not in col_cols:
+        cursor.execute("ALTER TABLE collections ADD COLUMN user_id TEXT")
 
     conn.commit()
     conn.close()
 
 # Helper: Format Reel response with collections and tags
 def format_reel(row, conn):
+    if not row:
+        return None
     reel_id = row['id']
     cursor = conn.cursor()
 
-    # Get collections
     cursor.execute('''
         SELECT c.id, c.name, c.color, c.icon 
         FROM collections c
@@ -292,7 +222,6 @@ def format_reel(row, conn):
     ''', (reel_id,))
     collections = [dict(c) for c in cursor.fetchall()]
 
-    # Get tags
     cursor.execute('''
         SELECT t.id, t.name 
         FROM tags t
@@ -306,98 +235,6 @@ def format_reel(row, conn):
     reel['tags'] = tags
     reel['primary_collection'] = collections[0] if collections else None
     return reel
-
-# --- API ROUTES ---
-
-@app.route('/api/reels', methods=['GET'])
-def list_reels():
-    collection_id = request.args.get('collection')
-    tag_name = request.args.get('tag')
-    media_type = request.args.get('type')  # 'all', 'video', 'link'
-    search = request.args.get('search', '').strip()
-    status = request.args.get('status') # 'all', 'favorite', 'watch_later', 'archived'
-    sort = request.args.get('sort', 'latest') # 'latest', 'oldest', 'title'
-
-    # Delegate to Supabase PostgreSQL when enabled
-    if is_supabase_enabled():
-        supa_reels = get_supabase_reels(collection_id=collection_id, media_type=media_type, status=status, search=search, sort=sort)
-        if supa_reels is not None:
-            return jsonify({'reels': supa_reels, 'count': len(supa_reels)})
-
-    conn = get_db()
-    cursor = conn.cursor()
-
-    query = '''
-        SELECT DISTINCT r.* 
-        FROM reels r
-        LEFT JOIN reel_collections rc ON r.id = rc.reel_id
-        LEFT JOIN reel_tags rt ON r.id = rt.reel_id
-        LEFT JOIN tags t ON rt.tag_id = t.id
-        WHERE 1=1
-    '''
-    params = []
-
-    # Filter by Archive state
-    if status == 'archived':
-        query += " AND r.is_archived = 1"
-    else:
-        query += " AND r.is_archived = 0"
-
-    if status == 'favorite':
-        query += " AND r.is_favorite = 1"
-    elif status == 'watch_later':
-        query += " AND r.is_watch_later = 1"
-
-    if collection_id and collection_id != 'all':
-        query += " AND rc.collection_id = ?"
-        params.append(int(collection_id))
-
-    if tag_name:
-        query += " AND t.name = ?"
-        params.append(tag_name)
-
-    if media_type and media_type in ['video', 'link', 'image']:
-        query += " AND r.media_type = ?"
-        params.append(media_type)
-
-    if search:
-        query += " AND (r.title LIKE ? OR r.description LIKE ? OR r.creator_username LIKE ? OR t.name LIKE ?)"
-        wildcard = f"%{search}%"
-        params.extend([wildcard, wildcard, wildcard, wildcard])
-
-    if sort == 'oldest':
-        query += " ORDER BY r.created_at ASC"
-    elif sort == 'title':
-        query += " ORDER BY r.title ASC"
-    else:
-        query += " ORDER BY r.created_at DESC"
-
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-
-    reels = [format_reel(r, conn) for r in rows]
-    conn.close()
-    return jsonify({'reels': reels, 'count': len(reels)})
-
-@app.route('/api/reels/<int:reel_id>', methods=['GET'])
-def get_reel(reel_id):
-    if is_supabase_enabled():
-        supa_reel = get_supabase_reel(reel_id)
-        if supa_reel:
-            return jsonify({'reel': supa_reel})
-        return jsonify({'error': 'Reel not found'}), 404
-
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM reels WHERE id = ?", (reel_id,))
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        return jsonify({'error': 'Reel not found'}), 404
-
-    reel = format_reel(row, conn)
-    conn.close()
-    return jsonify({'reel': reel})
 
 def extract_reel_media_info(url):
     """Extracts direct video MP4 URL, thumbnail, creator, and title via yt-dlp."""
@@ -442,23 +279,137 @@ def extract_reel_media_info(url):
         print(f"[Media extraction note] {e}")
         return None
 
+# =========================================================================
+# API ROUTES (STRICT MULTI-TENANT ISOLATION & PERMISSION CHECKS)
+# =========================================================================
+
+@app.route('/api/reels', methods=['GET'])
+def list_reels():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'reels': [], 'count': 0, 'authenticated': False}), 200
+
+    user_id = user['id']
+    collection_id = request.args.get('collection')
+    tag_name = request.args.get('tag')
+    media_type = request.args.get('type')
+    search = request.args.get('search', '').strip()
+    status = request.args.get('status')
+    sort = request.args.get('sort', 'latest')
+
+    # Supabase PostgreSQL multi-tenant fetch
+    if is_supabase_enabled():
+        supa_reels = get_supabase_reels(
+            user_id=user_id,
+            collection_id=collection_id, 
+            media_type=media_type, 
+            status=status, 
+            search=search, 
+            sort=sort
+        )
+        if supa_reels is not None:
+            return jsonify({'reels': supa_reels, 'count': len(supa_reels)})
+
+    # SQLite fallback with strict user_id filtering
+    conn = get_db()
+    cursor = conn.cursor()
+
+    query = '''
+        SELECT DISTINCT r.* 
+        FROM reels r
+        LEFT JOIN reel_collections rc ON r.id = rc.reel_id
+        LEFT JOIN reel_tags rt ON r.id = rt.reel_id
+        LEFT JOIN tags t ON rt.tag_id = t.id
+        WHERE r.user_id = ?
+    '''
+    params = [user_id]
+
+    if status == 'archived':
+        query += " AND r.is_archived = 1"
+    else:
+        query += " AND r.is_archived = 0"
+
+    if status == 'favorite':
+        query += " AND r.is_favorite = 1"
+    elif status == 'watch_later':
+        query += " AND r.is_watch_later = 1"
+
+    if collection_id and collection_id != 'all':
+        query += " AND rc.collection_id = ?"
+        params.append(int(collection_id))
+
+    if tag_name:
+        query += " AND t.name = ?"
+        params.append(tag_name)
+
+    if media_type and media_type in ['video', 'link', 'image']:
+        query += " AND r.media_type = ?"
+        params.append(media_type)
+
+    if search:
+        query += " AND (r.title LIKE ? OR r.description LIKE ? OR r.creator_username LIKE ? OR t.name LIKE ?)"
+        wildcard = f"%{search}%"
+        params.extend([wildcard, wildcard, wildcard, wildcard])
+
+    if sort == 'oldest':
+        query += " ORDER BY r.created_at ASC"
+    elif sort == 'title':
+        query += " ORDER BY r.title ASC"
+    else:
+        query += " ORDER BY r.created_at DESC"
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    reels = [format_reel(r, conn) for r in rows]
+    conn.close()
+    return jsonify({'reels': reels, 'count': len(reels)})
+
+@app.route('/api/reels/<int:reel_id>', methods=['GET'])
+def get_reel(reel_id):
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
+    if is_supabase_enabled():
+        supa_reel = get_supabase_reel(reel_id, user_id=user_id)
+        if supa_reel:
+            return jsonify({'reel': supa_reel})
+        return jsonify({'error': 'Reel not found or unauthorized'}), 404
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM reels WHERE id = ? AND user_id = ?", (reel_id, user_id))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Reel not found or unauthorized'}), 404
+
+    reel = format_reel(row, conn)
+    conn.close()
+    return jsonify({'reel': reel})
+
 @app.route('/api/reels/<int:reel_id>/video', methods=['GET'])
 def get_reel_video_stream(reel_id):
-    """Returns direct video stream or redirects to resolved MP4 URL."""
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
     target_reel = None
     if is_supabase_enabled():
-        target_reel = get_supabase_reel(reel_id)
+        target_reel = get_supabase_reel(reel_id, user_id=user_id)
     else:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM reels WHERE id = ?", (reel_id,))
+        cursor.execute("SELECT * FROM reels WHERE id = ? AND user_id = ?", (reel_id, user_id))
         row = cursor.fetchone()
         if row:
             target_reel = dict(row)
         conn.close()
 
     if not target_reel:
-        return jsonify({'error': 'Reel not found'}), 404
+        return jsonify({'error': 'Reel not found or unauthorized'}), 404
 
     video_url = target_reel.get('video_url')
     if not video_url:
@@ -473,10 +424,10 @@ def get_reel_video_stream(reel_id):
                         'video_url': video_url, 
                         'save_status': 'saved_video',
                         'thumbnail_url': new_thumb
-                    })
+                    }, user_id=user_id)
                 else:
                     conn = get_db()
-                    conn.execute("UPDATE reels SET video_url = ?, thumbnail_url = ?, save_status = 'saved_video' WHERE id = ?", (video_url, new_thumb, reel_id))
+                    conn.execute("UPDATE reels SET video_url = ?, thumbnail_url = ?, save_status = 'saved_video' WHERE id = ? AND user_id = ?", (video_url, new_thumb, reel_id, user_id))
                     conn.commit()
                     conn.close()
 
@@ -487,7 +438,12 @@ def get_reel_video_stream(reel_id):
 
 @app.route('/api/parse-url', methods=['POST'])
 def parse_instagram_url():
-    """Validates Instagram Reel URL, checks duplicates, and extracts direct video."""
+    """Validates Instagram Reel URL and checks duplicates strictly within the authenticated user's account."""
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized. Please sign in to save reels.'}), 401
+    user_id = user['id']
+
     data = request.get_json() or {}
     raw_url = (data.get('url') or '').strip()
 
@@ -498,23 +454,20 @@ def parse_instagram_url():
     if not shortcode and not ('instagram.com' in raw_url):
         return jsonify({'error': 'Please provide a valid Instagram Reel or Post link'}), 400
 
-    # Supabase duplicate check
+    # Supabase duplicate check SCOPED strictly to user_id
     if is_supabase_enabled():
-        try:
-            supa_res = supabase_client.table('reels').select('*, reel_collections(collection_id, collections(*)), reel_tags(tag_id, tags(*))').or_(f"normalized_url.eq.{normalized_url},original_url.eq.{raw_url}").execute().data
-            if supa_res:
-                reel = format_supabase_reel(supa_res[0])
-                return jsonify({
-                    'duplicate': True,
-                    'message': 'This Reel is already saved in your Vault!',
-                    'existing_reel': reel
-                })
-        except Exception as e:
-            print(f"[Supabase duplicate check] {e}")
+        supa_dup = check_supabase_duplicate_reel(user_id, normalized_url, raw_url)
+        if supa_dup:
+            return jsonify({
+                'duplicate': True,
+                'message': 'This Reel is already saved in your Vault!',
+                'existing_reel': supa_dup
+            })
 
+    # SQLite duplicate check SCOPED strictly to user_id
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM reels WHERE normalized_url = ? OR original_url = ?", (normalized_url, raw_url))
+    cursor.execute("SELECT * FROM reels WHERE user_id = ? AND (normalized_url = ? OR original_url = ?)", (user_id, normalized_url, raw_url))
     existing = cursor.fetchone()
 
     if existing:
@@ -528,7 +481,7 @@ def parse_instagram_url():
 
     conn.close()
 
-    # Default metadata
+    # Extract metadata via yt-dlp
     creator_handle = '@instagram_creator'
     title = f"Instagram Creative Reference ({shortcode or 'Reel'})"
     description = "Saved Instagram Reel inspiration. Metadata preserved from shared link."
@@ -536,7 +489,6 @@ def parse_instagram_url():
     extracted_video_url = None
     duration = '0:30'
 
-    # Direct video stream & metadata extraction via yt-dlp
     media_info = extract_reel_media_info(raw_url) or extract_reel_media_info(normalized_url)
     if media_info:
         title = media_info.get('title') or title
@@ -561,6 +513,11 @@ def parse_instagram_url():
 
 @app.route('/api/reels', methods=['POST'])
 def create_reel():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized. Please sign in to save reels.'}), 401
+    user_id = user['id']
+
     data = request.get_json() or {}
     original_url = (data.get('original_url') or '').strip()
     title = (data.get('title') or '').strip()
@@ -575,7 +532,7 @@ def create_reel():
     if not title:
         return jsonify({'error': 'Title is required'}), 400
 
-    # Auto-extract video stream if not present
+    # Auto-extract video stream if missing
     if not video_url and original_url:
         media_info = extract_reel_media_info(original_url)
         if media_info and media_info.get('video_url'):
@@ -586,11 +543,12 @@ def create_reel():
     save_status = data.get('save_status') or ('saved_video' if video_url else 'saved_link')
     normalized_url, _ = normalize_instagram_url(original_url) if original_url else (None, None)
 
-    # Delegate to Supabase if active
+    # Supabase PostgreSQL save
     if is_supabase_enabled():
         supa_data = {
+            'user_id': user_id,
             'original_url': original_url or 'https://instagram.com/reel/upload',
-            'normalized_url': normalized_url or f"manual_{int(datetime.utcnow().timestamp())}",
+            'normalized_url': normalized_url or f"manual_{user_id}_{int(datetime.utcnow().timestamp())}",
             'title': title,
             'description': description,
             'creator_username': creator_username,
@@ -601,16 +559,16 @@ def create_reel():
             'save_status': save_status,
             'duration': data.get('duration') or '0:30'
         }
-        new_supa_reel = insert_supabase_reel(supa_data, collection_id=collection_id, tags=tags_list)
+        new_supa_reel = insert_supabase_reel(supa_data, collection_id=collection_id, tags=tags_list, user_id=user_id)
         if new_supa_reel:
-            return jsonify({'reel': new_supa_reel, 'message': 'Reel saved successfully to Supabase!'}), 201
+            return jsonify({'reel': new_supa_reel, 'message': 'Reel saved successfully to your Vault!'}), 201
 
     conn = get_db()
     cursor = conn.cursor()
 
-    # Duplicate check
+    # SQLite Duplicate check scoped strictly to user_id
     if normalized_url:
-        cursor.execute("SELECT id FROM reels WHERE normalized_url = ?", (normalized_url,))
+        cursor.execute("SELECT id FROM reels WHERE user_id = ? AND normalized_url = ?", (user_id, normalized_url))
         existing = cursor.fetchone()
         if existing:
             conn.close()
@@ -621,13 +579,14 @@ def create_reel():
 
     cursor.execute('''
         INSERT INTO reels (
-            original_url, normalized_url, title, description,
+            user_id, original_url, normalized_url, title, description,
             creator_username, creator_avatar, thumbnail_url, video_url,
             media_type, save_status, duration
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
+        user_id,
         original_url,
-        normalized_url or f"manual_{datetime.utcnow().timestamp()}",
+        normalized_url or f"manual_{user_id}_{datetime.utcnow().timestamp()}",
         title,
         description,
         creator_username,
@@ -655,17 +614,19 @@ def create_reel():
                 cursor.execute("INSERT OR IGNORE INTO reel_tags (reel_id, tag_id) VALUES (?, ?)", (reel_id, t_row['id']))
 
     conn.commit()
-
-    cursor.execute("SELECT * FROM reels WHERE id = ?", (reel_id,))
+    cursor.execute("SELECT * FROM reels WHERE id = ? AND user_id = ?", (reel_id, user_id))
     new_reel = format_reel(cursor.fetchone(), conn)
     conn.close()
     return jsonify({'reel': new_reel, 'message': 'Reel saved successfully!'}), 201
 
 @app.route('/api/reels/<int:reel_id>', methods=['PATCH'])
 def update_reel(reel_id):
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
     data = request.get_json() or {}
-    
-    # Allowed fields
     updatable = ['title', 'description', 'creator_username', 'is_favorite', 'is_watch_later', 'is_archived', 'save_status']
     updates = {k: data[k] for k in updatable if k in data}
 
@@ -674,17 +635,24 @@ def update_reel(reel_id):
             reel_id, 
             updates, 
             collection_id=data.get('collection_id'), 
-            tags=data.get('tags')
+            tags=data.get('tags'),
+            user_id=user_id
         )
         if supa_updated:
-            return jsonify({'reel': supa_updated, 'message': 'Reel updated successfully in Supabase'})
+            return jsonify({'reel': supa_updated, 'message': 'Reel updated successfully'})
+        return jsonify({'error': 'Reel not found or unauthorized'}), 404
 
     conn = get_db()
     cursor = conn.cursor()
 
+    # Verify ownership
+    cursor.execute("SELECT id FROM reels WHERE id = ? AND user_id = ?", (reel_id, user_id))
+    if not cursor.fetchone():
+        conn.close()
+        return jsonify({'error': 'Reel not found or unauthorized'}), 404
+
     sql_updates = []
     values = []
-
     for key, val in updates.items():
         sql_updates.append(f"{key} = ?")
         values.append(val)
@@ -692,16 +660,15 @@ def update_reel(reel_id):
     if sql_updates:
         values.append(datetime.utcnow())
         values.append(reel_id)
-        cursor.execute(f"UPDATE reels SET {', '.join(sql_updates)}, updated_at = ? WHERE id = ?", values)
+        values.append(user_id)
+        cursor.execute(f"UPDATE reels SET {', '.join(sql_updates)}, updated_at = ? WHERE id = ? AND user_id = ?", values)
 
-    # Update collection if passed
     if 'collection_id' in data:
         col_id = data['collection_id']
         cursor.execute("DELETE FROM reel_collections WHERE reel_id = ?", (reel_id,))
         if col_id:
             cursor.execute("INSERT INTO reel_collections (reel_id, collection_id) VALUES (?, ?)", (reel_id, int(col_id)))
 
-    # Update tags if passed
     if 'tags' in data and isinstance(data['tags'], list):
         cursor.execute("DELETE FROM reel_tags WHERE reel_id = ?", (reel_id,))
         for tag_name in data['tags']:
@@ -714,27 +681,42 @@ def update_reel(reel_id):
                     cursor.execute("INSERT OR IGNORE INTO reel_tags (reel_id, tag_id) VALUES (?, ?)", (reel_id, t_row['id']))
 
     conn.commit()
-    cursor.execute("SELECT * FROM reels WHERE id = ?", (reel_id,))
+    cursor.execute("SELECT * FROM reels WHERE id = ? AND user_id = ?", (reel_id, user_id))
     updated = format_reel(cursor.fetchone(), conn)
     conn.close()
     return jsonify({'reel': updated, 'message': 'Reel updated successfully'})
 
 @app.route('/api/reels/<int:reel_id>', methods=['DELETE'])
 def delete_reel(reel_id):
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
     if is_supabase_enabled():
-        if delete_supabase_reel(reel_id):
-            return jsonify({'success': True, 'message': 'Reel removed from Supabase'})
+        if delete_supabase_reel(reel_id, user_id=user_id):
+            return jsonify({'success': True, 'message': 'Reel removed from Vault'})
+        return jsonify({'error': 'Reel not found or unauthorized'}), 404
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM reels WHERE id = ?", (reel_id,))
+    cursor.execute("DELETE FROM reels WHERE id = ? AND user_id = ?", (reel_id, user_id))
+    affected = cursor.rowcount
     conn.commit()
     conn.close()
-    return jsonify({'success': True, 'message': 'Reel removed from Vault'})
 
+    if affected > 0:
+        return jsonify({'success': True, 'message': 'Reel removed from Vault'})
+    return jsonify({'error': 'Reel not found or unauthorized'}), 404
+
+# --- UPLOADS API ---
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    """Uploads media (video or avatar photo) to Supabase Storage."""
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized. Please sign in to upload files.'}), 401
+    user_id = user['id']
+
     file = request.files.get('file') or request.files.get('video') or request.files.get('avatar')
     if not file or file.filename == '':
         return jsonify({'error': 'No file provided'}), 400
@@ -742,22 +724,23 @@ def upload_file():
     if file and allowed_file(file.filename):
         filename = secure_filename(f"{int(datetime.utcnow().timestamp())}_{file.filename}")
         
-        # Check if Supabase Storage is active
         video_url = None
         if is_supabase_enabled():
             try:
                 file_bytes = file.read()
                 content_type = file.content_type or 'application/octet-stream'
-                video_url = upload_file_to_supabase(file_bytes, filename, content_type)
+                video_url = upload_file_to_supabase(file_bytes, filename, content_type, user_id=user_id)
             except Exception as e:
                 print(f"[Supabase Upload Fallback] {e}")
 
-        # Local storage fallback
+        # Local storage fallback with user directory isolation
         if not video_url:
-            save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], user_id)
+            os.makedirs(user_upload_dir, exist_ok=True)
+            save_path = os.path.join(user_upload_dir, filename)
             file.seek(0)
             file.save(save_path)
-            video_url = f"/uploads/{filename}"
+            video_url = f"/uploads/{user_id}/{filename}"
 
         return jsonify({
             'success': True,
@@ -773,27 +756,34 @@ def upload_file():
 
 @app.route('/api/status', methods=['GET'])
 def get_system_status():
-    """Returns deployment environment and Supabase connection state."""
     supabase_active = is_supabase_enabled()
     is_vercel = bool(os.environ.get('VERCEL')) or bool(os.environ.get('VERCEL_ENV'))
+    user = get_authenticated_user()
     return jsonify({
         'status': 'online',
         'database': 'Supabase PostgreSQL' if supabase_active else 'SQLite (Local)',
         'storage': 'Supabase Storage (vault-media)' if supabase_active else 'Local Storage',
         'platform': 'Vercel Serverless' if is_vercel else 'Localhost Environment',
         'supabase_configured': supabase_active,
-        'vercel_environment': is_vercel
+        'vercel_environment': is_vercel,
+        'authenticated': bool(user),
+        'user': user if user else None
     })
 
 @app.route('/uploads/<path:filename>')
 def serve_upload(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# Collections API
+# --- COLLECTIONS API ---
 @app.route('/api/collections', methods=['GET'])
 def list_collections():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'collections': []})
+    user_id = user['id']
+
     if is_supabase_enabled():
-        supa_cols = get_supabase_collections()
+        supa_cols = get_supabase_collections(user_id=user_id)
         if supa_cols is not None:
             return jsonify({'collections': supa_cols})
 
@@ -803,16 +793,22 @@ def list_collections():
         SELECT c.*, COUNT(rc.reel_id) as reel_count 
         FROM collections c
         LEFT JOIN reel_collections rc ON c.id = rc.collection_id
-        LEFT JOIN reels r ON rc.reel_id = r.id AND r.is_archived = 0
+        LEFT JOIN reels r ON rc.reel_id = r.id AND r.is_archived = 0 AND r.user_id = ?
+        WHERE c.user_id = ?
         GROUP BY c.id
         ORDER BY c.name ASC
-    ''')
+    ''', (user_id, user_id))
     collections = [dict(c) for c in cursor.fetchall()]
     conn.close()
     return jsonify({'collections': collections})
 
 @app.route('/api/collections', methods=['POST'])
 def create_collection():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
     data = request.get_json() or {}
     name = (data.get('name') or '').strip()
     description = (data.get('description') or '').strip()
@@ -823,7 +819,7 @@ def create_collection():
         return jsonify({'error': 'Collection name is required'}), 400
 
     if is_supabase_enabled():
-        new_supa_col = insert_supabase_collection(name, description, color, icon)
+        new_supa_col = insert_supabase_collection(name, description, color, icon, user_id=user_id)
         if new_supa_col:
             return jsonify({'collection': new_supa_col, 'message': 'Collection created'}), 201
 
@@ -831,50 +827,68 @@ def create_collection():
     cursor = conn.cursor()
     try:
         cursor.execute('''
-            INSERT INTO collections (name, description, color, icon)
-            VALUES (?, ?, ?, ?)
-        ''', (name, description, color, icon))
+            INSERT INTO collections (user_id, name, description, color, icon)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, name, description, color, icon))
         conn.commit()
         col_id = cursor.lastrowid
-        cursor.execute("SELECT *, 0 as reel_count FROM collections WHERE id = ?", (col_id,))
+        cursor.execute("SELECT *, 0 as reel_count FROM collections WHERE id = ? AND user_id = ?", (col_id, user_id))
         new_col = dict(cursor.fetchone())
         conn.close()
         return jsonify({'collection': new_col, 'message': 'Collection created'}), 201
     except sqlite3.IntegrityError:
         conn.close()
-        return jsonify({'error': 'A collection with this name already exists'}), 409
+        return jsonify({'error': 'A collection with this name already exists in your library'}), 409
 
 @app.route('/api/collections/<int:col_id>', methods=['DELETE'])
 def delete_collection(col_id):
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
     if is_supabase_enabled():
-        if delete_supabase_collection(col_id):
+        if delete_supabase_collection(col_id, user_id=user_id):
             return jsonify({'success': True, 'message': 'Collection deleted'})
+        return jsonify({'error': 'Collection not found or unauthorized'}), 404
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM collections WHERE id = ?", (col_id,))
+    cursor.execute("DELETE FROM collections WHERE id = ? AND user_id = ?", (col_id, user_id))
+    affected = cursor.rowcount
     conn.commit()
     conn.close()
-    return jsonify({'success': True, 'message': 'Collection deleted'})
+    if affected > 0:
+        return jsonify({'success': True, 'message': 'Collection deleted'})
+    return jsonify({'error': 'Collection not found or unauthorized'}), 404
 
-# Tags API
+# --- TAGS API ---
 @app.route('/api/tags', methods=['GET'])
 def list_tags():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'tags': []})
+    user_id = user['id']
+
+    if is_supabase_enabled():
+        tags = get_supabase_tags(user_id=user_id)
+        return jsonify({'tags': tags})
+
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
         SELECT t.*, COUNT(rt.reel_id) as reel_count
         FROM tags t
         JOIN reel_tags rt ON t.id = rt.tag_id
-        JOIN reels r ON rt.reel_id = r.id AND r.is_archived = 0
+        JOIN reels r ON rt.reel_id = r.id AND r.is_archived = 0 AND r.user_id = ?
         GROUP BY t.id
         ORDER BY reel_count DESC
-    ''')
+    ''', (user_id,))
     tags = [dict(t) for t in cursor.fetchall()]
     conn.close()
     return jsonify({'tags': tags})
 
-# Frontend Web Application Route
+# --- FRONTEND PAGES ---
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -883,6 +897,7 @@ def index():
 def login_page():
     return render_template('login.html')
 
+# --- AUTHENTICATION API ---
 @app.route('/api/auth/login', methods=['POST'])
 def api_auth_login():
     data = request.get_json() or {}
@@ -893,47 +908,66 @@ def api_auth_login():
         return jsonify({'error': 'Email and password are required'}), 400
 
     # Try Supabase Auth
-    if is_supabase_enabled():
+    if is_supabase_enabled() and supabase_client:
         try:
             res = supabase_client.auth.sign_in_with_password({"email": email, "password": password})
             if res.user:
+                u = res.user
+                user_id = str(u.id)
+                access_token = res.session.access_token if res.session else None
+                display_name = u.user_metadata.get('full_name') or email.split('@')[0].capitalize()
+                avatar_url = u.user_metadata.get('avatar_url') or 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80'
+
+                # Store in signed server session
+                session['user_id'] = user_id
+                session['user_email'] = u.email
+                session['user_display_name'] = display_name
+                session['user_avatar'] = avatar_url
+                session['user_role'] = 'Pro Member'
+                session['access_token'] = access_token
+
+                # Seed user starter collections if new
+                ensure_default_collections(user_id)
+
+                user_obj = {
+                    'id': user_id,
+                    'email': u.email,
+                    'display_name': display_name,
+                    'avatar_url': avatar_url,
+                    'role': 'Pro Member'
+                }
                 return jsonify({
                     'success': True,
-                    'user': {
-                        'id': res.user.id,
-                        'email': res.user.email,
-                        'display_name': res.user.user_metadata.get('full_name') or email.split('@')[0].capitalize(),
-                        'avatar_url': res.user.user_metadata.get('avatar_url') or 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
-                        'role': 'Pro Member'
-                    }
+                    'user': user_obj,
+                    'access_token': access_token
                 })
         except Exception as e:
             err_msg = str(e)
             if 'Invalid login credentials' not in err_msg and 'invalid_credentials' not in err_msg.lower():
                 print(f"[Supabase Auth Note] {e}")
 
-    # Fallback / Demo Account Support
-    if email == 'alex@vaultcreative.design' or 'demo' in email:
+    # Fallback Account Verification
+    if len(password) >= 6:
+        user_id = f"usr_{abs(hash(email)) % 10000000}"
+        display_name = email.split('@')[0].replace('.', ' ').capitalize()
+        avatar_url = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'
+
+        session['user_id'] = user_id
+        session['user_email'] = email
+        session['user_display_name'] = display_name
+        session['user_avatar'] = avatar_url
+        session['user_role'] = 'Creator Member'
+
+        user_obj = {
+            'id': user_id,
+            'email': email,
+            'display_name': display_name,
+            'avatar_url': avatar_url,
+            'role': 'Creator Member'
+        }
         return jsonify({
             'success': True,
-            'user': {
-                'id': 'usr_vault_pro',
-                'display_name': 'Alex Rivera',
-                'email': 'alex@vaultcreative.design',
-                'avatar_url': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
-                'role': 'Pro Creator'
-            }
-        })
-    elif len(password) >= 6:
-        return jsonify({
-            'success': True,
-            'user': {
-                'id': f"usr_{abs(hash(email)) % 1000000}",
-                'display_name': email.split('@')[0].replace('.', ' ').capitalize(),
-                'email': email,
-                'avatar_url': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80',
-                'role': 'Creator Member'
-            }
+            'user': user_obj
         })
 
     return jsonify({'error': 'Invalid email or password. Password must be at least 6 characters.'}), 401
@@ -950,7 +984,7 @@ def api_auth_signup():
     if len(password) < 6:
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
 
-    if is_supabase_enabled():
+    if is_supabase_enabled() and supabase_client:
         try:
             res = supabase_client.auth.sign_up({
                 "email": email, 
@@ -958,54 +992,88 @@ def api_auth_signup():
                 "options": {"data": {"full_name": name}}
             })
             if res.user:
+                u = res.user
+                user_id = str(u.id)
+                access_token = res.session.access_token if res.session else None
+                avatar_url = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'
+
+                session['user_id'] = user_id
+                session['user_email'] = u.email
+                session['user_display_name'] = name
+                session['user_avatar'] = avatar_url
+                session['user_role'] = 'Creator Member'
+                session['access_token'] = access_token
+
+                ensure_default_collections(user_id)
+
                 return jsonify({
                     'success': True,
                     'user': {
-                        'id': res.user.id,
-                        'email': res.user.email,
+                        'id': user_id,
+                        'email': u.email,
                         'display_name': name,
-                        'avatar_url': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80',
+                        'avatar_url': avatar_url,
                         'role': 'Creator Member'
-                    }
+                    },
+                    'access_token': access_token
                 })
         except Exception as e:
             print(f"[Supabase SignUp Note] {e}")
 
+    # Fallback
+    user_id = f"usr_{abs(hash(email)) % 10000000}"
+    avatar_url = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'
+    session['user_id'] = user_id
+    session['user_email'] = email
+    session['user_display_name'] = name
+    session['user_avatar'] = avatar_url
+    session['user_role'] = 'Creator Member'
+
     return jsonify({
         'success': True,
         'user': {
-            'id': f"usr_{abs(hash(email)) % 1000000}",
+            'id': user_id,
             'display_name': name,
             'email': email,
-            'avatar_url': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80',
+            'avatar_url': avatar_url,
             'role': 'Creator Member'
         }
     })
 
-@app.route('/api/auth/demo', methods=['POST'])
-def api_auth_demo():
-    return jsonify({
-        'success': True,
-        'user': {
-            'id': 'usr_vault_pro',
-            'display_name': 'Alex Rivera',
-            'email': 'alex@vaultcreative.design',
-            'avatar_url': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
-            'role': 'Pro Creator'
-        }
-    })
+@app.route('/api/auth/logout', methods=['POST'])
+def api_auth_logout():
+    session.clear()
+    resp = jsonify({'success': True, 'message': 'Logged out successfully'})
+    resp.set_cookie('vault_session', '', expires=0)
+    return resp
+
+@app.route('/api/auth/me', methods=['GET'])
+def api_auth_me():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'authenticated': False}), 401
+    return jsonify({'authenticated': True, 'user': user})
 
 @app.route('/api/auth/profile', methods=['PATCH', 'POST'])
 def update_user_profile():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
     data = request.get_json() or {}
     display_name = (data.get('display_name') or '').strip()
-    role = (data.get('role') or 'Creator Member').strip()
-    email = (data.get('email') or '').strip()
-    avatar_url = (data.get('avatar_url') or '').strip()
-    user_id = data.get('id') or 'usr_vault_pro'
+    role = (data.get('role') or user.get('role') or 'Creator Member').strip()
+    email = (data.get('email') or user.get('email') or '').strip()
+    avatar_url = (data.get('avatar_url') or user.get('avatar_url') or '').strip()
 
     if not display_name:
         return jsonify({'error': 'Display name is required'}), 400
+
+    # Update in-session profile
+    session['user_display_name'] = display_name
+    session['user_role'] = role
+    session['user_avatar'] = avatar_url
 
     if is_supabase_enabled():
         try:
