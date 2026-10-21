@@ -1,21 +1,43 @@
 {
-  "name": "Vault — Save Reels. Find Them Instantly.",
+  "name": "Vault — Creative Reels Library",
   "short_name": "Vault",
-  "description": "Premium personal creative inspiration library to save, organize, search, and watch your favorite Instagram Reels.",
-  "start_url": "/",
+  "description": "Save Instagram Reels, organize creative swipe files, and watch videos distraction-free.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#101828",
   "theme_color": "#4F46E5",
+  "categories": ["productivity", "multimedia", "design", "entertainment"],
   "icons": [
     {
-      "src": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=192&h=192&q=80",
+      "src": "/static/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=512&h=512&q=80",
+      "src": "/static/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
     }
   ],
   "share_target": {
@@ -26,5 +48,28 @@
       "text": "text",
       "url": "share_url"
     }
-  }
+  },
+  "shortcuts": [
+    {
+      "name": "Save New Reel",
+      "short_name": "Save Reel",
+      "description": "Paste or upload a new Reel to Vault",
+      "url": "/?action=add",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Library",
+      "short_name": "Library",
+      "description": "Browse saved creative Reels",
+      "url": "/?filter=all",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Profile & Avatar Studio",
+      "short_name": "Profile",
+      "description": "Customize your avatar or upload a headshot",
+      "url": "/?action=profile",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }
