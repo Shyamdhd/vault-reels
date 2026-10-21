@@ -6,7 +6,7 @@
   <title>Vault — Sign In</title>
   
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#101828">
+  <meta name="theme-color" content="#242834">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,12 +23,12 @@
         extend: {
           colors: {
             vault: {
-              navy: '#101828',
-              navyDark: '#0C1322',
-              primary: '#4F46E5',
-              primaryHover: '#4338CA',
-              accent: '#8B5CF6',
-              bg: '#FAFBFF'
+              slate: '#242834',
+              slateDark: '#1C202B',
+              lime: '#B6FF00',
+              purple: '#7D53FF',
+              purpleHover: '#6C40E8',
+              bg: '#242834'
             }
           }
         }
@@ -51,19 +51,20 @@
       font-family: 'Space Grotesk', sans-serif;
     }
     .mesh-gradient {
-      background: radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.15) 0%, transparent 40%),
-                  radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
-                  #101828;
+      background: radial-gradient(circle at 15% 15%, rgba(125, 83, 255, 0.22) 0%, transparent 45%),
+                  radial-gradient(circle at 85% 85%, rgba(182, 255, 0, 0.10) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(125, 83, 255, 0.08) 0%, transparent 60%),
+                  #242834;
     }
   </style>
 </head>
-<body class="mesh-gradient min-h-screen text-gray-200 flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+<body class="mesh-gradient min-h-screen text-gray-200 flex flex-col justify-between selection:bg-[#B6FF00] selection:text-[#242834]">
 
   <!-- TOP BRAND NAV -->
   <header class="p-6 lg:px-12 flex items-center justify-between">
     <a href="/" class="flex items-center gap-3 group">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition transform">
-        <i data-lucide="clapperboard" class="w-5 h-5"></i>
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#7D53FF] via-[#8F66FF] to-[#B6FF00] flex items-center justify-center text-white shadow-lg shadow-[#7D53FF]/25 group-hover:scale-105 transition transform">
+        <i data-lucide="clapperboard" class="w-5 h-5 text-white"></i>
       </div>
       <div>
         <h1 class="text-xl font-bold tracking-tight text-white font-brand">VAULT</h1>
@@ -71,9 +72,9 @@
       </div>
     </a>
 
-    <a href="/" class="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700/60 hover:border-slate-500 transition">
+    <a href="/" class="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700/60 hover:border-[#7D53FF]/60 transition">
       <span>Back to Library</span>
-      <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+      <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-[#B6FF00]"></i>
     </a>
   </header>
 
@@ -82,14 +83,14 @@
     <div class="w-full max-w-md">
 
       <!-- Card Shell -->
-      <div class="bg-[#151F33]/90 backdrop-blur-xl border border-slate-700/60 rounded-3xl p-8 shadow-2xl shadow-black/40 relative overflow-hidden">
+      <div class="bg-[#1C202B]/95 backdrop-blur-xl border border-slate-700/60 rounded-3xl p-8 shadow-2xl shadow-black/50 relative overflow-hidden">
         
         <!-- Subtle Glow Blob -->
-        <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-[#7D53FF]/20 rounded-full blur-3xl pointer-events-none"></div>
 
         <!-- Mode Tabs -->
-        <div class="flex p-1 bg-slate-900/80 rounded-2xl border border-slate-800 mb-6">
-          <button id="tabSignIn" onclick="switchTab('signin')" class="flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 shadow-sm transition">
+        <div class="flex p-1 bg-[#242834] rounded-2xl border border-slate-700/70 mb-6">
+          <button id="tabSignIn" onclick="switchTab('signin')" class="flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-[#7D53FF] shadow-sm transition">
             Sign In
           </button>
           <button id="tabSignUp" onclick="switchTab('signup')" class="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white transition">
@@ -113,8 +114,8 @@
           <div id="nameGroup" class="hidden space-y-1.5">
             <label class="block text-xs font-medium text-gray-300">Full Name</label>
             <div class="relative">
-              <i data-lucide="user" class="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-              <input type="text" id="nameInput" placeholder="Alex Rivera" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-indigo-500 transition">
+              <i data-lucide="user" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="nameInput" placeholder="Alex Rivera" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#242834] border border-slate-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-[#7D53FF] focus:ring-1 focus:ring-[#7D53FF] transition">
             </div>
           </div>
 
@@ -122,8 +123,8 @@
           <div class="space-y-1.5">
             <label class="block text-xs font-medium text-gray-300">Email Address</label>
             <div class="relative">
-              <i data-lucide="mail" class="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-              <input type="email" id="emailInput" required placeholder="alex@vaultcreative.design" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-indigo-500 transition">
+              <i data-lucide="mail" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="email" id="emailInput" required placeholder="alex@vaultcreative.design" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#242834] border border-slate-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-[#7D53FF] focus:ring-1 focus:ring-[#7D53FF] transition">
             </div>
           </div>
 
@@ -131,12 +132,12 @@
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="block text-xs font-medium text-gray-300">Password</label>
-              <button type="button" onclick="alert('Password reset link will be sent to your email.')" class="text-[11px] text-indigo-400 hover:text-indigo-300 transition">Forgot?</button>
+              <button type="button" onclick="alert('Password reset link will be sent to your email.')" class="text-[11px] text-[#B6FF00] hover:underline transition">Forgot?</button>
             </div>
             <div class="relative">
-              <i data-lucide="lock" class="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-              <input type="password" id="passwordInput" required placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-indigo-500 transition">
-              <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+              <i data-lucide="lock" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="password" id="passwordInput" required placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#242834] border border-slate-700 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-[#7D53FF] focus:ring-1 focus:ring-[#7D53FF] transition">
+              <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200">
                 <i id="eyeIcon" data-lucide="eye" class="w-4 h-4"></i>
               </button>
             </div>
@@ -144,22 +145,22 @@
 
           <!-- Remember Me -->
           <div class="flex items-center gap-2 pt-1">
-            <input type="checkbox" id="rememberMe" checked class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900">
+            <input type="checkbox" id="rememberMe" checked class="w-4 h-4 rounded border-slate-700 bg-[#242834] text-[#7D53FF] focus:ring-[#7D53FF]">
             <label for="rememberMe" class="text-xs text-gray-400 select-none">Remember this device</label>
           </div>
 
           <!-- Primary Submit Button -->
-          <button type="submit" id="submitBtn" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-indigo-600/30 transition transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2">
+          <button type="submit" id="submitBtn" class="w-full py-3 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white font-semibold text-xs tracking-wide shadow-lg shadow-[#7D53FF]/30 transition transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2">
             <span id="submitBtnText">Sign In to Vault</span>
-            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            <i data-lucide="arrow-right" class="w-4 h-4 text-[#B6FF00]"></i>
           </button>
         </form>
 
       </div>
 
       <!-- Trust & Technology Footer -->
-      <div class="mt-6 text-center text-[11px] text-gray-500 flex items-center justify-center gap-3">
-        <span class="flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> Supabase Cloud</span>
+      <div class="mt-6 text-center text-[11px] text-gray-400 flex items-center justify-center gap-3">
+        <span class="flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#B6FF00]"></i> Supabase Cloud</span>
         <span>•</span>
         <span>256-Bit SSL</span>
         <span>•</span>
@@ -189,14 +190,14 @@
       if (alertEl) alertEl.classList.add('hidden');
 
       if (mode === 'signup') {
-        tabSignUp.className = "flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 shadow-sm transition";
+        tabSignUp.className = "flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-[#7D53FF] shadow-sm transition";
         tabSignIn.className = "flex-1 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white transition";
         nameGroup.classList.remove('hidden');
         authHeading.innerText = "Create your account";
         authSubheading.innerText = "Join Vault to curate and organize inspiration reels";
         submitBtnText.innerText = "Create Vault Account";
       } else {
-        tabSignIn.className = "flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 shadow-sm transition";
+        tabSignIn.className = "flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-[#7D53FF] shadow-sm transition";
         tabSignUp.className = "flex-1 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white transition";
         nameGroup.classList.add('hidden');
         authHeading.innerText = "Welcome back";
@@ -226,7 +227,7 @@
         alertEl.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0"></i><span>${msg}</span>`;
       } else {
         alertEl.classList.add('bg-emerald-950/60', 'border', 'border-emerald-800', 'text-emerald-200');
-        alertEl.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0"></i><span>${msg}</span>`;
+        alertEl.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-[#B6FF00] shrink-0"></i><span>${msg}</span>`;
       }
       lucide.createIcons();
     }
