@@ -433,16 +433,108 @@ async function checkSystemStatus() {
   }
 }
 
+// =========================================================================
+// PWA SERVICE WORKER & APP INSTALLATION SYSTEM
+// =========================================================================
+let deferredPwaPrompt = null;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => console.log('[PWA] Service Worker active with scope:', reg.scope))
+      .catch((err) => console.warn('[PWA] Service Worker registration note:', err));
+  });
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPwaPrompt = e;
+  console.log('[PWA] Native install prompt captured');
+  
+  const installBtn = document.getElementById('installAppSidebarBtn');
+  if (installBtn) {
+    installBtn.classList.add('ring-2', 'ring-indigo-400', 'animate-pulse');
+    setTimeout(() => installBtn.classList.remove('animate-pulse'), 3000);
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPwaPrompt = null;
+  showToast('🎉 Vault App installed successfully!');
+  const installBtn = document.getElementById('installAppSidebarBtn');
+  if (installBtn) {
+    installBtn.innerHTML = `
+      <span class="flex items-center gap-2">
+        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>App Installed</span>
+      </span>
+      <span class="text-[9px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">READY</span>
+    `;
+    if (window.lucide) lucide.createIcons();
+  }
+});
+
+function handlePwaInstallClick() {
+  if (deferredPwaPrompt) {
+    triggerNativeInstall();
+  } else {
+    openInstallAppModal();
+  }
+}
+
+function triggerNativeInstall() {
+  if (deferredPwaPrompt) {
+    deferredPwaPrompt.prompt();
+    deferredPwaPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('[PWA] User accepted installation prompt');
+        showToast('Installing Vault App...');
+      }
+      deferredPwaPrompt = null;
+      closeInstallAppModal();
+    });
+  } else {
+    closeInstallAppModal();
+    showToast('Follow the on-screen browser instructions to install.');
+  }
+}
+
+function openInstallAppModal() {
+  const modal = document.getElementById('installAppModal');
+  if (modal) modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeInstallAppModal() {
+  const modal = document.getElementById('installAppModal');
+  if (modal) modal.classList.add('hidden');
+}
+
 // PWA Web Share Target Handler
 function handleWebShareTarget() {
   const urlParams = new URLSearchParams(window.location.search);
-  const sharedUrl = urlParams.get('share_url') || urlParams.get('text') || urlParams.get('url');
-  if (sharedUrl && sharedUrl.includes('instagram.com')) {
-    openAddReelModal();
-    const input = document.getElementById('reelUrlInput');
-    if (input) {
-      input.value = sharedUrl;
-      handleUrlValidation(sharedUrl);
+  const rawInput = urlParams.get('share_url') || urlParams.get('text') || urlParams.get('url');
+  
+  // Also check action shortcuts like ?action=add or ?action=profile
+  const action = urlParams.get('action');
+  if (action === 'add') {
+    setTimeout(() => openAddReelModal(), 300);
+  } else if (action === 'profile' || action === 'settings') {
+    setTimeout(() => openProfileSettingsModal(), 300);
+  }
+
+  if (rawInput) {
+    const urlMatch = rawInput.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:reel|p|reels)\/[a-zA-Z0-9_\-]+[^\s]*/i);
+    const targetUrl = urlMatch ? urlMatch[0] : (rawInput.includes('instagram.com') ? rawInput.trim() : null);
+    if (targetUrl) {
+      setTimeout(() => {
+        openAddReelModal();
+        const input = document.getElementById('reelUrlInput');
+        if (input) {
+          input.value = targetUrl;
+          handleUrlValidation(targetUrl);
+        }
+      }, 400);
     }
   }
 }
