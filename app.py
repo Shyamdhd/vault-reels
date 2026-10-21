@@ -5,7 +5,7 @@ import sqlite3
 import urllib.request
 import urllib.parse
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_from_directory, redirect
+from flask import Flask, request, jsonify, render_template, send_from_directory, redirect, make_response
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
@@ -1033,7 +1033,22 @@ def update_user_profile():
 
 @app.route('/manifest.json')
 def manifest():
-    return send_from_directory(BASE_DIR, 'manifest.json')
+    response = make_response(send_from_directory(BASE_DIR, 'manifest.json'))
+    response.headers['Content-Type'] = 'application/manifest+json'
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response
+
+@app.route('/sw.js')
+def service_worker():
+    response = make_response(send_from_directory(BASE_DIR, 'sw.js'))
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(BASE_DIR, 'static', 'icons'), 'icon-192.png', mimetype='image/png')
 
 if __name__ == '__main__':
     init_db()
