@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
+
+:root {
+  --primary: #7D53FF;
+  --primary-hover: #6C40E8;
+  --accent: #B6FF00;
+  --accent-hover: #A3E600;
+  --sidebar-bg: #242834;
+  --main-bg: #F5F7FA;
+  --card-bg: #FFFFFF;
+  --text-primary: #242834;
+  --text-secondary: #64748B;
+  --border-color: #E2E8F0;
+  --brand-slate: #242834;
+  --brand-lime: #B6FF00;
+  --brand-purple: #7D53FF;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--main-bg);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #353B4B;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #464F65;
+}
+
+/* Card hover animation */
+.reel-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.reel-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(36, 40, 52, 0.12), 0 4px 10px -2px rgba(36, 40, 52, 0.06);
+  border-color: #D3C4FF;
+}
+
+.reel-card.active-reel {
+  border-color: #7D53FF !important;
+  box-shadow: 0 0 0 2px rgba(125, 83, 255, 0.35), 0 10px 25px -5px rgba(125, 83, 255, 0.25);
+}
+
+/* 4:5 Aspect Ratio for Library Thumbnails */
+.aspect-thumbnail {
+  aspect-ratio: 4 / 5;
+}
+
+/* 9:16 Aspect Ratio for Right Preview Video */
+.aspect-reel-player {
+  aspect-ratio: 9 / 16;
+  width: 100%;
+  height: 520px;
+  max-height: 540px;
+}
+
+/* Shimmer Skeleton loader */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Smooth modal transitions */
+.modal-overlay {
+  transition: opacity 0.2s ease-out;
+}
+
+.modal-content {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out;
+}
+
+/* Brand Palette Helpers */
+.bg-vault-slate { background-color: #242834; }
+.bg-vault-lime { background-color: #B6FF00; }
+.bg-vault-purple { background-color: #7D53FF; }
+.text-vault-slate { color: #242834; }
+.text-vault-lime { color: #B6FF00; }
+.text-vault-purple { color: #7D53FF; }
+.border-vault-slate { border-color: #242834; }
+.border-vault-lime { border-color: #B6FF00; }
+.border-vault-purple { border-color: #7D53FF; }
