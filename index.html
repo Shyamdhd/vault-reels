@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vault — Save Reels. Find Them Instantly.</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#242834">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vault">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
+  <meta name="description" content="A premium personal creative inspiration library to save, organize, search, and watch your favorite Instagram Reels.">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            vault: {
+              sidebar: '#242834',
+              sidebarDark: '#1C202B',
+              bg: '#F5F7FA',
+              card: '#FFFFFF',
+              primary: '#7D53FF',
+              primaryHover: '#6C40E8',
+              accent: '#B6FF00',
+              accentHover: '#A3E600',
+              textPrimary: '#242834',
+              textSecondary: '#64748B',
+              border: '#E2E8F0'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="/static/styles.css?v=6">
+</head>
+<body class="bg-[#F5F7FA] text-[#242834] h-screen flex flex-col overflow-hidden selection:bg-[#B6FF00] selection:text-[#242834]">
+
+  <!-- Global App Container (1440px Grid Shell) -->
+  <div class="flex flex-1 h-full w-full overflow-hidden">
+
+    <!-- 1. LEFT SIDEBAR (264px Fixed, Dark Slate #242834) -->
+    <aside class="w-[264px] shrink-0 bg-[#242834] text-gray-300 flex flex-col justify-between border-r border-[#313746] h-full z-30 select-none">
+      
+      <!-- Top Section: Brand & Nav -->
+      <div class="flex flex-col flex-1 overflow-hidden p-4 space-y-6">
+        
+        <!-- Logo & Tagline -->
+        <div class="px-2 pt-1">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#7D53FF] to-[#B6FF00] flex items-center justify-center text-[#242834] shadow-lg shadow-[#7D53FF]/25">
+              <i data-lucide="bookmark" class="w-4 h-4 fill-[#242834] text-[#242834]"></i>
+            </div>
+            <div>
+              <span class="font-bold text-lg text-white tracking-tight">VAULT</span>
+              <span class="text-[9px] block text-[#B6FF00] font-semibold tracking-wider uppercase">Inspiration Library</span>
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-2 font-medium">Save Reels. Find Them Instantly.</p>
+        </div>
+
+        <!-- Primary Navigation -->
+        <nav class="space-y-1">
+          <button onclick="filterByStatus('all')" data-nav="all" class="nav-main-btn w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#7D53FF]/20 text-[#B6FF00] transition">
+            <i data-lucide="home" class="w-4 h-4"></i>
+            <span>Home</span>
+          </button>
+          <button onclick="document.getElementById('globalSearchInput').focus()" data-nav="search" class="nav-main-btn w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>Search</span>
+            <span class="ml-auto text-[10px] font-mono text-gray-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">⌘K</span>
+          </button>
+          <button onclick="filterByStatus('favorite')" data-nav="favorite" class="nav-main-btn w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition">
+            <i data-lucide="star" class="w-4 h-4 text-amber-400"></i>
+            <span>Favorites</span>
+          </button>
+          <button onclick="filterByStatus('watch_later')" data-nav="watch_later" class="nav-main-btn w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition">
+            <i data-lucide="clock" class="w-4 h-4 text-cyan-400"></i>
+            <span>Watch Later</span>
+          </button>
+          <button onclick="filterByStatus('archived')" data-nav="archived" class="nav-main-btn w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition">
+            <i data-lucide="archive" class="w-4 h-4 text-gray-400"></i>
+            <span>Archived</span>
+          </button>
+        </nav>
+
+        <!-- Collections Section -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-2 mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Collections</span>
+            <button onclick="openNewCollectionModal()" class="text-gray-400 hover:text-[#B6FF00] transition p-1 rounded hover:bg-white/5" title="New Collection">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          <div id="collectionsSidebarList" class="sidebar-scroll flex-1 overflow-y-auto space-y-0.5 pr-1">
+            <!-- Rendered dynamically by main.js -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom User & PWA Sharing Info -->
+      <div class="p-3 border-t border-[#313746] bg-[#1C202B] space-y-1.5">
+        <!-- Install App Button (PWA 1-Click) -->
+        <button id="installAppSidebarBtn" onclick="handlePwaInstallClick()" class="w-full flex items-center justify-between p-2 rounded-xl bg-gradient-to-r from-[#7D53FF]/30 to-[#B6FF00]/20 border border-[#7D53FF]/40 text-white hover:from-[#7D53FF]/50 hover:to-[#B6FF00]/30 text-[11px] font-semibold transition shadow-xs group">
+          <span class="flex items-center gap-2">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-[#B6FF00] group-hover:scale-110 transition"></i>
+            <span>Install Vault App</span>
+          </span>
+          <span class="text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#B6FF00]/20 text-[#B6FF00] font-mono">App</span>
+        </button>
+
+        <button onclick="openPwaShortcutModal()" class="w-full flex items-center justify-between p-2 rounded-xl bg-[#242834] border border-[#7D53FF]/30 text-purple-200 hover:bg-[#2c3241] text-[11px] font-medium transition">
+          <span class="flex items-center gap-1.5"><i data-lucide="smartphone" class="w-3.5 h-3.5 text-[#B6FF00]"></i> Instagram Share Guide</span>
+          <i data-lucide="chevron-right" class="w-3 h-3 text-[#B6FF00]"></i>
+        </button>
+
+        <div class="flex items-center justify-between px-2 py-1">
+          <div onclick="openProfileSettingsModal()" class="flex items-center gap-2 overflow-hidden cursor-pointer group flex-1 mr-1" title="Click to Edit Profile">
+            <img id="sidebarUserAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80" alt="Avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-white/20 shrink-0 group-hover:ring-[#B6FF00] transition">
+            <div class="truncate">
+              <p id="sidebarUserName" class="text-xs font-semibold text-white leading-tight truncate group-hover:text-[#B6FF00] transition">Alex Rivera</p>
+              <p id="sidebarUserRole" class="text-[10px] text-gray-400 leading-tight truncate">Pro Library</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button onclick="openProfileSettingsModal()" class="text-gray-400 hover:text-[#7D53FF] p-1.5 rounded-lg hover:bg-white/5 transition" title="Edit Profile Settings">
+              <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="handleLogout()" class="text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/5 transition" title="Log Out">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- 2. MAIN CONTENT AREA (Header + ~752px 3-Column Library Grid) -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden bg-[#F5F7FA]">
+
+      <!-- Top Header (76px Height) -->
+      <header class="h-[76px] shrink-0 bg-white border-b border-[#E2E8F0] px-6 lg:px-8 flex items-center justify-between gap-4 z-20">
+        
+        <!-- Large Global Search Bar -->
+        <div class="flex-1 max-w-xl">
+          <div class="relative w-full">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="globalSearchInput" placeholder="Search by title, description, @creator, or #tags..." 
+              class="w-full bg-gray-50 hover:bg-gray-100/70 focus:bg-white text-xs font-medium text-gray-800 placeholder-gray-400 rounded-xl pl-10 pr-12 py-2.5 border border-gray-200 focus:outline-none focus:border-[#7D53FF] focus:ring-2 focus:ring-[#7D53FF]/15 transition">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-gray-400 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-2xs">⌘K</span>
+          </div>
+        </div>
+
+        <!-- Top Right Actions -->
+        <div class="flex items-center gap-3">
+          
+          <!-- Add Reel Button (Primary CTA) -->
+          <button onclick="openAddReelModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white text-xs font-bold tracking-wide shadow-md shadow-[#7D53FF]/25 transition transform hover:-translate-y-0.5 active:translate-y-0">
+            <i data-lucide="plus" class="w-4 h-4 text-[#B6FF00]"></i>
+            <span>ADD REEL</span>
+          </button>
+
+          <!-- Notification Bell with Interactive Dropdown -->
+          <div class="relative">
+            <button onclick="toggleNotificationsMenu(event)" id="notificationsBellBtn" class="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition relative" title="Notifications">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="unreadNotifDot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B6FF00] ring-2 ring-white"></span>
+            </button>
+
+            <!-- Notification Dropdown Menu -->
+            <div id="notificationsDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200/90 p-4 z-50 space-y-3">
+              <div class="flex items-center justify-between pb-2.5 border-b border-gray-100">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sm text-gray-900">Notifications</span>
+                  <span id="notifCountBadge" class="text-[10px] font-semibold bg-[#7D53FF]/15 text-[#7D53FF] px-2 py-0.5 rounded-full">3 new</span>
+                </div>
+                <button type="button" onclick="markAllNotificationsAsRead()" class="text-[11px] font-medium text-[#7D53FF] hover:text-[#6C40E8] transition">
+                  Mark all as read
+                </button>
+              </div>
+
+              <div id="notificationsList" class="space-y-2 max-h-72 overflow-y-auto">
+                <div class="p-2.5 rounded-xl bg-[#7D53FF]/5 hover:bg-[#7D53FF]/10 border border-[#7D53FF]/15 flex items-start gap-3 transition">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="database" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800">Supabase Cloud Connected</p>
+                    <p class="text-[11px] text-gray-500">PostgreSQL database and media storage are live & active.</p>
+                    <span class="text-[10px] text-gray-400 mt-0.5 block">Just now</span>
+                  </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-[#7D53FF]/5 hover:bg-[#7D53FF]/10 border border-[#7D53FF]/15 flex items-start gap-3 transition">
+                  <div class="w-7 h-7 rounded-lg bg-[#7D53FF]/15 text-[#7D53FF] flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="film" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800">Vault Library Ready</p>
+                    <p class="text-[11px] text-gray-500">Save Instagram Reel links or upload 9:16 videos directly.</p>
+                    <span class="text-[10px] text-gray-400 mt-0.5 block">5m ago</span>
+                  </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-[#7D53FF]/5 hover:bg-[#7D53FF]/10 border border-[#7D53FF]/15 flex items-start gap-3 transition">
+                  <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800">Snapchat Avatar Studio</p>
+                    <p class="text-[11px] text-gray-500">Pick Bitmoji, Cartoon, Robot styles or upload your headshot.</p>
+                    <span class="text-[10px] text-gray-400 mt-0.5 block">1h ago</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-gray-100 flex items-center justify-between">
+                <button type="button" onclick="clearNotifications()" class="text-[11px] text-gray-400 hover:text-gray-600 transition">
+                  Clear all
+                </button>
+                <button type="button" onclick="toggleNotificationsMenu()" class="text-[11px] font-semibold text-[#7D53FF] hover:text-[#6C40E8] transition">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings Button (Opens Profile & Settings) -->
+          <button onclick="openProfileSettingsModal()" class="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition" title="Profile & Settings">
+            <i data-lucide="settings" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+      </header>
+
+      <!-- Subheader: Filters, Tabs, Sorting -->
+      <div class="px-6 lg:px-8 py-4 bg-[#F5F7FA] border-b border-gray-200/60 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div class="flex items-center gap-3">
+          <div>
+            <h1 class="text-lg font-bold text-[#242834] leading-tight">All Reels</h1>
+            <p id="headerReelsCount" class="text-xs text-[#64748B]">Loading library...</p>
+          </div>
+        </div>
+
+        <!-- Filter Tabs & Sort Controls -->
+        <div class="flex items-center gap-3">
+          <!-- All / Video / Link Tabs -->
+          <div class="flex items-center bg-gray-100 p-1 rounded-xl text-xs">
+            <button onclick="filterByMediaType('all')" data-type="all" class="media-type-btn px-3 py-1.5 rounded-lg bg-white text-gray-900 shadow-sm font-semibold transition">All</button>
+            <button onclick="filterByMediaType('video')" data-type="video" class="media-type-btn px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-900 font-medium transition">Videos</button>
+            <button onclick="filterByMediaType('link')" data-type="link" class="media-type-btn px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-900 font-medium transition">Saved Links</button>
+          </div>
+
+          <!-- Sort Dropdown -->
+          <div class="flex items-center gap-1.5 text-xs text-gray-500">
+            <i data-lucide="arrow-up-down" class="w-3.5 h-3.5"></i>
+            <select onchange="handleSortChange(this.value)" class="bg-white border border-gray-200 text-xs text-gray-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#7D53FF] font-medium">
+              <option value="latest">Latest Added</option>
+              <option value="oldest">Oldest First</option>
+              <option value="title">By Title</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable 3-Column Library Grid -->
+      <div class="flex-1 overflow-y-auto px-6 lg:px-8 py-6">
+        <div id="reelsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-6">
+          <!-- Rendered dynamically by main.js with 4:5 aspect ratio cards -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. RIGHT PREVIEW PANEL (352px Fixed Width, White Panel #FFFFFF) -->
+    <aside class="w-[352px] shrink-0 bg-white border-l border-[#E2E8F0] h-full overflow-y-auto p-4 z-20 flex flex-col justify-between shadow-xs">
+      <div id="rightPreviewContainer" class="h-full">
+        <!-- Rendered dynamically by main.js with 9:16 Video Player -->
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- MODAL: ADD REEL (Link Paste & Direct Video Upload) -->
+  <div id="addReelModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-overlay">
+    <div class="bg-white w-full max-w-lg rounded-2xl p-6 border border-gray-200 shadow-2xl modal-content space-y-4">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-[#7D53FF]/10 text-[#7D53FF] flex items-center justify-center shadow-xs">
+            <i data-lucide="plus" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-gray-900">Save Instagram Reel to Vault</h3>
+            <p class="text-xs text-gray-500">Paste an Instagram link or upload your own 9:16 video</p>
+          </div>
+        </div>
+        <button onclick="closeAddReelModal()" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Instagram Link Input with Auto-Validation -->
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold text-gray-700">Instagram Reel URL</label>
+        <div class="relative">
+          <i data-lucide="link-2" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="reelUrlInput" placeholder="https://www.instagram.com/reel/C3_example/" 
+            class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl pl-9 pr-4 py-2.5 border border-gray-200 focus:outline-none focus:border-[#7D53FF] focus:bg-white transition">
+        </div>
+        <div id="urlValidationFeedback">
+          <span class="text-[11px] text-gray-400">Links are verified for duplicate entries and public metadata.</span>
+        </div>
+      </div>
+
+      <!-- Direct Video Upload Dropzone Alternative -->
+      <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-gray-700">Or Upload Video File (MP4, MOV, WebM)</label>
+        <div id="videoDropZone" class="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-[#7D53FF]/60 bg-gray-50/50 cursor-pointer transition">
+          <i data-lucide="upload-cloud" class="w-6 h-6 text-[#7D53FF] mx-auto mb-1"></i>
+          <p class="text-xs font-medium text-gray-700">Click or drag & drop video file</p>
+          <p class="text-[10px] text-gray-400">Up to 500 MB</p>
+          <input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,video/webm" class="hidden">
+        </div>
+        <input type="hidden" id="uploadedVideoUrlInput">
+        <div id="uploadProgressContainer" class="hidden space-y-1 pt-1">
+          <p id="uploadProgressStatus" class="text-[11px] text-[#7D53FF] font-medium"></p>
+          <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+            <div id="uploadProgressBar" class="bg-[#7D53FF] h-full w-0 transition-all duration-300"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata Fields -->
+      <div class="space-y-3 pt-2 border-t border-gray-100">
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Title</label>
+          <input type="text" id="reelTitleInput" placeholder="e.g. Kinetic Typography 3D Spring in After Effects" 
+            class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-[#7D53FF] focus:bg-white">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Creator Handle</label>
+            <input type="text" id="reelCreatorInput" placeholder="@username" 
+              class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-[#7D53FF] focus:bg-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Collection</label>
+            <select id="addReelCollectionSelect" class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-[#7D53FF]">
+              <option value="">Uncategorized</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Tags (Comma separated)</label>
+          <input type="text" id="reelTagsInput" placeholder="Kinetic, Typography, AfterEffects" 
+            class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-[#7D53FF] focus:bg-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Notes / Caption</label>
+          <textarea id="reelDescInput" rows="2" placeholder="Key creative techniques or breakdown..." 
+            class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-[#7D53FF] focus:bg-white"></textarea>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+        <button onclick="closeAddReelModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 transition">Cancel</button>
+        <button onclick="submitAddReel()" class="px-5 py-2.5 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white text-xs font-bold shadow-md shadow-[#7D53FF]/25 transition">
+          Save to Vault
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: NEW COLLECTION -->
+  <div id="newCollectionModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-overlay">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 border border-gray-200 shadow-2xl modal-content space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+        <h3 class="font-bold text-base text-gray-900">Create Collection</h3>
+        <button onclick="closeNewCollectionModal()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Collection Name</label>
+          <input type="text" id="newColNameInput" placeholder="e.g. 3D Houdini Sims" class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-[#7D53FF]">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Description</label>
+          <input type="text" id="newColDescInput" placeholder="Short description of this moodboard..." class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-[#7D53FF]">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Moodboard Accent Color</label>
+          <div class="flex items-center gap-2">
+            <input type="color" id="newColColorInput" value="#7D53FF" class="w-8 h-8 rounded-lg cursor-pointer border border-gray-200">
+            <span class="text-xs text-gray-500">Choose collection color tag</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+        <button onclick="closeNewCollectionModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500">Cancel</button>
+        <button onclick="submitNewCollection()" class="px-4 py-2 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white text-xs font-bold shadow-md shadow-[#7D53FF]/25">Create Collection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INSTALL VAULT APP (PWA) -->
+  <div id="installAppModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-overlay">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 border border-gray-200 shadow-2xl modal-content space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-3">
+          <img src="/static/icons/icon-192.png" alt="Vault Icon" class="w-10 h-10 rounded-xl shadow-md ring-1 ring-black/5">
+          <div>
+            <h3 class="font-bold text-base text-gray-900">Install Vault Application</h3>
+            <p class="text-[11px] text-gray-500">Standalone app for Phone, Tablet & Desktop</p>
+          </div>
+        </div>
+        <button onclick="closeInstallAppModal()" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-gray-600">
+        <!-- 1-Click Native Install Action (Shown when prompt is ready) -->
+        <div id="nativeInstallSection" class="p-4 rounded-xl bg-gradient-to-r from-[#7D53FF]/10 to-[#B6FF00]/10 border border-[#7D53FF]/20 space-y-2 text-center">
+          <p class="font-semibold text-gray-800">Install Vault Directly</p>
+          <p class="text-[11px] text-gray-500">Runs standalone in its own window with zero browser clutter.</p>
+          <button type="button" onclick="triggerNativeInstall()" class="w-full py-2.5 px-4 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white font-bold text-xs shadow-md shadow-[#7D53FF]/25 transition flex items-center justify-center gap-2">
+            <i data-lucide="download" class="w-4 h-4 text-[#B6FF00]"></i>
+            <span>Install Vault Now</span>
+          </button>
+        </div>
+
+        <!-- Guided Instructions for iPhone / Safari -->
+        <div class="space-y-2 pt-2">
+          <p class="font-bold text-gray-800 flex items-center gap-1.5">
+            <i data-lucide="apple" class="w-4 h-4 text-slate-700"></i>
+            <span>On iPhone / iPad (Safari):</span>
+          </p>
+          <ol class="list-decimal pl-5 space-y-1 text-gray-600 text-[11px]">
+            <li>Tap the <strong>Share</strong> button <span class="px-1.5 py-0.5 rounded bg-gray-100 font-mono">⎋</span> at the bottom bar of Safari.</li>
+            <li>Scroll down and tap <strong>"Add to Home Screen"</strong> <span class="px-1.5 py-0.5 rounded bg-gray-100 font-mono">➕</span>.</li>
+            <li>Tap <strong>Add</strong> at the top right. Vault will appear on your home screen!</li>
+          </ol>
+        </div>
+
+        <div class="space-y-2 pt-2 border-t border-gray-100">
+          <p class="font-bold text-gray-800 flex items-center gap-1.5">
+            <i data-lucide="monitor" class="w-4 h-4 text-slate-700"></i>
+            <span>On Windows / Mac / Chrome / Edge:</span>
+          </p>
+          <p class="text-[11px] text-gray-600">Click the <strong>Install App</strong> icon in your browser's address bar to run Vault in its own high-performance window.</p>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-gray-100 flex justify-end">
+        <button onclick="closeInstallAppModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MOBILE SHARING & PWA / iOS SHORTCUT GUIDE -->
+  <div id="pwaShortcutModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-overlay">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 border border-gray-200 shadow-2xl modal-content space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-[#7D53FF]/10 text-[#7D53FF] flex items-center justify-center">
+            <i data-lucide="share-2" class="w-4 h-4"></i>
+          </div>
+          <h3 class="font-bold text-base text-gray-900">Mobile Sharing Setup</h3>
+        </div>
+        <button onclick="closePwaShortcutModal()" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-gray-600">
+        <p class="font-semibold text-gray-800">The Core Vault Workflow:</p>
+        <div class="p-3 rounded-xl bg-[#7D53FF]/10 border border-[#7D53FF]/20 text-[#242834] font-medium text-center">
+          Instagram → Share → Vault → Saved!
+        </div>
+
+        <div class="space-y-2 pt-2">
+          <p class="font-bold text-gray-800">1. Android & Progressive Web App (PWA)</p>
+          <p>Install Vault via Chrome (tap "Install App"). Vault registers as a <strong>Web Share Target</strong>, so you can share any Reel directly from Instagram into Vault.</p>
+        </div>
+
+        <div class="space-y-2 pt-2">
+          <p class="font-bold text-gray-800">2. iOS Shortcuts (iPhone)</p>
+          <p>Create a simple Shortcut in the iOS Shortcuts App that accepts URLs from the Share Sheet and sends them to your Vault link:</p>
+          <div class="bg-gray-100 p-2.5 rounded-xl font-mono text-[11px] text-gray-800 select-all break-all">
+            http://localhost:3000/?share_url=[Shortcut Input]
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-gray-100 flex justify-end">
+        <button onclick="closePwaShortcutModal()" class="px-4 py-2 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white text-xs font-semibold">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PROFILE SETTINGS & EDIT -->
+  <div id="profileSettingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-overlay">
+    <div class="bg-white w-full max-w-lg rounded-2xl p-6 border border-gray-200 shadow-2xl modal-content space-y-4 max-h-[92vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#7D53FF] to-[#B6FF00] text-[#242834] flex items-center justify-center shadow-xs">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-gray-900">Profile & Avatar Studio</h3>
+            <p class="text-[11px] text-gray-500">Upload your headshot or customize a Snapchat-style avatar</p>
+          </div>
+        </div>
+        <button onclick="closeProfileSettingsModal()" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Main Avatar Preview Card & Direct Upload -->
+      <div class="p-4 bg-gradient-to-b from-slate-50 to-[#7D53FF]/5 rounded-2xl border border-[#7D53FF]/20 flex flex-col sm:flex-row items-center gap-4">
+        
+        <!-- Big Round Avatar with Hover Upload Overlay -->
+        <div class="relative group shrink-0 cursor-pointer" onclick="document.getElementById('avatarFileInput').click()" title="Click to upload photo">
+          <img id="editAvatarPreview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&h=160&q=80" alt="Avatar Preview" class="w-20 h-20 rounded-full object-cover ring-4 ring-white shadow-md group-hover:opacity-90 transition">
+          <div class="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition backdrop-blur-2xs">
+            <i data-lucide="camera" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Change</span>
+          </div>
+          <!-- Upload badge -->
+          <div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#7D53FF] text-white flex items-center justify-center shadow-md ring-2 ring-white">
+            <i data-lucide="upload" class="w-3 h-3"></i>
+          </div>
+        </div>
+
+        <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" onchange="handleAvatarFileUpload(event)">
+
+        <div class="flex-1 text-center sm:text-left space-y-2">
+          <div>
+            <div class="flex items-center justify-center sm:justify-start gap-1.5">
+              <span class="text-xs font-bold text-gray-900">Creator Identity</span>
+              <span id="avatarTypeBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#B6FF00]/25 text-[#242834]">Snap Avatar</span>
+            </div>
+            <p id="avatarUploadStatus" class="text-[11px] text-gray-500 mt-0.5">Customize your Snapchat look or upload your own headshot photo.</p>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+            <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold shadow-2xs hover:border-[#7D53FF]/40 transition flex items-center gap-1.5">
+              <i data-lucide="image-up" class="w-3.5 h-3.5 text-[#7D53FF]"></i>
+              <span>Upload Photo</span>
+            </button>
+            <button type="button" onclick="randomizeSnapAvatar()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#B6FF00] to-[#9FE000] hover:brightness-105 text-[#242834] text-xs font-bold shadow-2xs transition flex items-center gap-1.5">
+              <i data-lucide="dices" class="w-3.5 h-3.5"></i>
+              <span>🎲 Shuffle Snap</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Avatar Mode Tabs -->
+      <div class="space-y-3">
+        <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+          <button type="button" id="tabBtnSnap" onclick="switchAvatarTab('snap')" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-[#7D53FF] text-white shadow-xs flex items-center justify-center gap-1.5">
+            <span>👻 Snap Studio</span>
+          </button>
+          <button type="button" id="tabBtnPresets" onclick="switchAvatarTab('presets')" class="flex-1 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 rounded-lg transition flex items-center justify-center gap-1.5">
+            <span>📸 Headshots</span>
+          </button>
+          <button type="button" id="tabBtnUrl" onclick="switchAvatarTab('url')" class="flex-1 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 rounded-lg transition flex items-center justify-center gap-1.5">
+            <span>🔗 Direct Link</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: SNAPCHAT AVATAR STUDIO -->
+        <div id="tabContentSnap" class="space-y-3 bg-slate-50 p-3 rounded-xl border border-gray-200/80">
+          <!-- 1. Archetype Style Chips -->
+          <div>
+            <label class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5">Snapchat Archetype</label>
+            <div class="grid grid-cols-5 gap-1.5" id="snapStyleGrid">
+              <button type="button" onclick="selectSnapStyle('avataaars')" data-style="avataaars" class="snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-[#7D53FF] text-[#7D53FF] shadow-2xs">
+                🧢 Bitmoji
+              </button>
+              <button type="button" onclick="selectSnapStyle('adventurer')" data-style="adventurer" class="snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-gray-200 text-gray-700 hover:border-gray-300">
+                🎒 Cartoon
+              </button>
+              <button type="button" onclick="selectSnapStyle('bottts')" data-style="bottts" class="snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-gray-200 text-gray-700 hover:border-gray-300">
+                🤖 Robot
+              </button>
+              <button type="button" onclick="selectSnapStyle('micah')" data-style="micah" class="snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-gray-200 text-gray-700 hover:border-gray-300">
+                🎨 Creator
+              </button>
+              <button type="button" onclick="selectSnapStyle('lorelei')" data-style="lorelei" class="snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-gray-200 text-gray-700 hover:border-gray-300">
+                ✨ Anime
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Mood & Seed Selector -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">Mood & Character Seed</label>
+              <span class="text-[10px] text-gray-400">Type or pick a vibe</span>
+            </div>
+            <div class="flex items-center gap-1.5 mb-2">
+              <input type="text" id="snapSeedInput" oninput="onSnapSeedInput(this.value)" placeholder="Enter seed or name..." value="Felix" class="flex-1 bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-800 focus:outline-none focus:border-[#7D53FF]">
+              <button type="button" onclick="randomizeSnapSeed()" class="px-2.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-700 shrink-0" title="Randomize seed">
+                🎲 Next
+              </button>
+            </div>
+            <!-- Quick Mood tags -->
+            <div class="flex flex-wrap gap-1">
+              <button type="button" onclick="setSnapSeed('Felix')" class="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 hover:border-[#7D53FF] hover:text-[#7D53FF]">😄 Happy</button>
+              <button type="button" onclick="setSnapSeed('Alex')" class="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 hover:border-[#7D53FF] hover:text-[#7D53FF]">😎 Cool</button>
+              <button type="button" onclick="setSnapSeed('Maya')" class="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 hover:border-[#7D53FF] hover:text-[#7D53FF]">🎨 Creative</button>
+              <button type="button" onclick="setSnapSeed('Neo')" class="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 hover:border-[#7D53FF] hover:text-[#7D53FF]">🕹️ Gamer</button>
+              <button type="button" onclick="setSnapSeed('Luna')" class="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 hover:border-[#7D53FF] hover:text-[#7D53FF]">✨ Sparkle</button>
+              <button type="button" onclick="setSnapSeed('Zen')" class="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 hover:border-[#7D53FF] hover:text-[#7D53FF]">🧘 Chill</button>
+            </div>
+          </div>
+
+          <!-- 3. Snap Background Color Swatches (Includes #B6FF00, #7D53FF, #242834) -->
+          <div>
+            <label class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5">Background Tone</label>
+            <div class="flex items-center gap-2" id="snapColorSwatches">
+              <button type="button" onclick="selectSnapColor('b6ff00')" data-color="b6ff00" class="snap-color-btn w-6 h-6 rounded-full border-2 border-[#7D53FF] ring-2 ring-[#7D53FF]/40 shadow-xs hover:scale-110 transition bg-[#B6FF00]" title="Volt Lime"></button>
+              <button type="button" onclick="selectSnapColor('7d53ff')" data-color="7d53ff" class="snap-color-btn w-6 h-6 rounded-full border-2 border-white hover:scale-110 transition bg-[#7D53FF]" title="Electric Purple"></button>
+              <button type="button" onclick="selectSnapColor('242834')" data-color="242834" class="snap-color-btn w-6 h-6 rounded-full border-2 border-white hover:scale-110 transition bg-[#242834]" title="Dark Slate"></button>
+              <button type="button" onclick="selectSnapColor('fffc00')" data-color="fffc00" class="snap-color-btn w-6 h-6 rounded-full border-2 border-white hover:scale-110 transition bg-[#fffc00]" title="Snap Yellow"></button>
+              <button type="button" onclick="selectSnapColor('b6e3f4')" data-color="b6e3f4" class="snap-color-btn w-6 h-6 rounded-full border-2 border-white hover:scale-110 transition bg-[#b6e3f4]" title="Sky Blue"></button>
+              <button type="button" onclick="selectSnapColor('c0aede')" data-color="c0aede" class="snap-color-btn w-6 h-6 rounded-full border-2 border-white hover:scale-110 transition bg-[#c0aede]" title="Lavender"></button>
+              <button type="button" onclick="selectSnapColor('ffd5dc')" data-color="ffd5dc" class="snap-color-btn w-6 h-6 rounded-full border-2 border-white hover:scale-110 transition bg-[#ffd5dc]" title="Rose Pink"></button>
+              <button type="button" onclick="selectSnapColor('10b981')" data-color="10b981" class="snap-color-btn w-6 h-6 rounded-full border-2 border-white hover:scale-110 transition bg-[#10b981]" title="Emerald"></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: PHOTO PRESETS (Verified 200-OK Creator Photos) -->
+        <div id="tabContentPresets" class="hidden space-y-2 bg-slate-50 p-3 rounded-xl border border-gray-200/80">
+          <label class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">Curated Headshots</label>
+          <div class="grid grid-cols-6 gap-2">
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&h=160&q=80')" class="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent hover:border-[#7D53FF] hover:scale-110 transition shadow-xs" title="Creator 1">
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&h=160&q=80')" class="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent hover:border-[#7D53FF] hover:scale-110 transition shadow-xs" title="Creator 2">
+              <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=160&h=160&q=80')" class="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent hover:border-[#7D53FF] hover:scale-110 transition shadow-xs" title="Creator 3">
+              <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=160&h=160&q=80')" class="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent hover:border-[#7D53FF] hover:scale-110 transition shadow-xs" title="Creator 4">
+              <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&h=160&q=80')" class="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent hover:border-[#7D53FF] hover:scale-110 transition shadow-xs" title="Creator 5">
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+            <button type="button" onclick="setAvatarPreset('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&h=160&q=80')" class="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent hover:border-[#7D53FF] hover:scale-110 transition shadow-xs" title="Creator 6">
+              <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&h=80&q=80" class="w-full h-full object-cover">
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: DIRECT IMAGE URL -->
+        <div id="tabContentUrl" class="hidden space-y-1 bg-slate-50 p-3 rounded-xl border border-gray-200/80">
+          <label class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">Direct Image URL</label>
+          <div class="relative">
+            <i data-lucide="link" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="url" id="directAvatarUrlInput" oninput="onDirectUrlInput(this.value)" placeholder="https://example.com/avatar.jpg" class="w-full bg-white pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#7D53FF] transition">
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Form -->
+      <form id="profileEditForm" onsubmit="handleSaveProfile(event)" class="space-y-3 pt-1">
+        
+        <!-- Hidden input storing active avatar URL -->
+        <input type="hidden" id="editAvatarUrlInput">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Display Name -->
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-gray-700">Display Name</label>
+            <div class="relative">
+              <i data-lucide="user" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="editDisplayNameInput" required placeholder="Shyam Sharma" class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#7D53FF] transition">
+            </div>
+          </div>
+
+          <!-- Role / Title -->
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-gray-700">Role / Badge</label>
+            <div class="relative">
+              <i data-lucide="award" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="editRoleInput" placeholder="Creator Member, Lead..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#7D53FF] transition">
+            </div>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="space-y-1">
+          <label class="block text-xs font-semibold text-gray-700">Email Address</label>
+          <div class="relative">
+            <i data-lucide="mail" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="email" id="editEmailInput" placeholder="shyam@vault.design" class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#7D53FF] transition">
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeProfileSettingsModal()" class="px-4 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
+            Cancel
+          </button>
+          <button type="submit" id="saveProfileBtn" class="px-5 py-2 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white text-xs font-semibold shadow-md shadow-[#7D53FF]/25 transition flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5 text-[#B6FF00]"></i>
+            <span>Save Profile</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="appToast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-xl bg-[#242834] text-white shadow-2xl flex items-center gap-3 border border-[#7D53FF]/40">
+    <i data-lucide="check-circle" class="w-4 h-4 text-[#B6FF00]"></i>
+    <span id="appToastText" class="text-xs font-semibold">Action completed successfully</span>
+  </div>
+
+  <!-- Main JavaScript App Controller -->
+  <script src="/static/main.js?v=10"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
