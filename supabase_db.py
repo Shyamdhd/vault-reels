@@ -296,7 +296,7 @@ def ensure_default_collections(user_id):
         existing = client.table('collections').select('id').eq('user_id', user_id).execute().data
         if not existing:
             starter_cols = [
-                {'name': 'Transitions', 'description': 'Match cuts, zooms, whip pans', 'color': '#4F46E5', 'icon': 'sparkles', 'user_id': user_id},
+                {'name': 'Transitions', 'description': 'Match cuts, zooms, whip pans', 'color': '#7D53FF', 'icon': 'sparkles', 'user_id': user_id},
                 {'name': 'Typography', 'description': 'Kinetic text, titles, subtitles', 'color': '#8B5CF6', 'icon': 'type', 'user_id': user_id},
                 {'name': 'UI/UX', 'description': 'App walkthroughs, interactions', 'color': '#EC4899', 'icon': 'smartphone', 'user_id': user_id},
                 {'name': 'Motion Graphics', 'description': '3D animations, abstract loops', 'color': '#F59E0B', 'icon': 'film', 'user_id': user_id}
