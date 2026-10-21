@@ -142,7 +142,7 @@ def init_db():
         user_id TEXT,
         name TEXT NOT NULL,
         description TEXT,
-        color TEXT DEFAULT '#4F46E5',
+        color TEXT DEFAULT '#7D53FF',
         icon TEXT DEFAULT 'folder',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, name)
@@ -812,7 +812,7 @@ def create_collection():
     data = request.get_json() or {}
     name = (data.get('name') or '').strip()
     description = (data.get('description') or '').strip()
-    color = (data.get('color') or '#4F46E5').strip()
+    color = (data.get('color') or '#7D53FF').strip()
     icon = (data.get('icon') or 'folder').strip()
 
     if not name:
