@@ -140,7 +140,7 @@ function switchAvatarTab(tabName) {
     if (!item.btn || !item.content) return;
     if (k === tabName) {
       item.content.classList.remove('hidden');
-      item.btn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-white text-indigo-600 shadow-xs flex items-center justify-center gap-1.5';
+      item.btn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-[#7D53FF] text-white shadow-xs flex items-center justify-center gap-1.5';
     } else {
       item.content.classList.add('hidden');
       item.btn.className = 'flex-1 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 rounded-lg transition flex items-center justify-center gap-1.5';
@@ -152,7 +152,7 @@ function selectSnapStyle(style) {
   currentSnapStyle = style;
   document.querySelectorAll('.snap-style-btn').forEach(btn => {
     if (btn.getAttribute('data-style') === style) {
-      btn.className = 'snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-indigo-500 text-indigo-700 shadow-2xs';
+      btn.className = 'snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-[#7D53FF] text-[#7D53FF] shadow-2xs';
     } else {
       btn.className = 'snap-style-btn py-1.5 px-1 rounded-lg text-center border text-[11px] font-semibold bg-white border-gray-200 text-gray-700 hover:border-gray-300';
     }
@@ -165,10 +165,10 @@ function selectSnapColor(hexColor) {
   currentSnapBgColor = hexColor;
   document.querySelectorAll('.snap-color-btn').forEach(btn => {
     if (btn.getAttribute('data-color') === hexColor) {
-      btn.classList.add('border-indigo-600', 'ring-2', 'ring-indigo-400/40');
+      btn.classList.add('border-[#7D53FF]', 'ring-2', 'ring-[#7D53FF]/40');
       btn.classList.remove('border-white');
     } else {
-      btn.classList.remove('border-indigo-600', 'ring-2', 'ring-indigo-400/40');
+      btn.classList.remove('border-[#7D53FF]', 'ring-2', 'ring-[#7D53FF]/40');
       btn.classList.add('border-white');
     }
   });
@@ -289,11 +289,11 @@ async function handleAvatarFileUpload(event) {
   reader.readAsDataURL(file);
 
   if (statusText) {
-    statusText.innerHTML = '<span class="text-indigo-600 font-semibold animate-pulse">Uploading photo to Vault Storage...</span>';
+    statusText.innerHTML = '<span class="text-[#7D53FF] font-semibold animate-pulse">Uploading photo to Vault Storage...</span>';
   }
   if (badge) {
     badge.innerText = 'Uploading...';
-    badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-700';
+    badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[#7D53FF]/15 text-[#7D53FF]';
   }
   if (saveBtn) saveBtn.disabled = true;
 
@@ -496,7 +496,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   
   const installBtn = document.getElementById('installAppSidebarBtn');
   if (installBtn) {
-    installBtn.classList.add('ring-2', 'ring-indigo-400', 'animate-pulse');
+    installBtn.classList.add('ring-2', 'ring-[#B6FF00]', 'animate-pulse');
     setTimeout(() => installBtn.classList.remove('animate-pulse'), 3000);
   }
 });
@@ -673,9 +673,9 @@ function renderCollectionsSidebar() {
   const totalReelsCount = state.collections.reduce((sum, c) => sum + (c.reel_count || 0), 0);
 
   let html = `
-    <button onclick="filterByCollection(null)" class="sidebar-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${state.activeCollectionId === null ? 'bg-indigo-600/15 text-indigo-400 font-bold' : 'text-gray-300 hover:text-white hover:bg-white/5'}">
+    <button onclick="filterByCollection(null)" class="sidebar-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${state.activeCollectionId === null ? 'bg-[#7D53FF]/20 text-[#B6FF00] font-bold' : 'text-gray-300 hover:text-white hover:bg-white/5'}">
       <span class="flex items-center gap-2.5">
-        <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+        <span class="w-2 h-2 rounded-full bg-[#B6FF00]"></span>
         <span>All Reels</span>
       </span>
       <span class="text-[11px] text-gray-500 font-mono">${state.reels.length}</span>
@@ -685,9 +685,9 @@ function renderCollectionsSidebar() {
   state.collections.forEach(col => {
     const isActive = state.activeCollectionId === col.id;
     html += `
-      <div class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${isActive ? 'bg-indigo-600/15 text-indigo-300 font-bold' : 'text-gray-300 hover:text-white hover:bg-white/5'}" onclick="filterByCollection(${col.id})">
+      <div class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${isActive ? 'bg-[#7D53FF]/20 text-white font-bold' : 'text-gray-300 hover:text-white hover:bg-white/5'}" onclick="filterByCollection(${col.id})">
         <span class="flex items-center gap-2.5 truncate">
-          <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${col.color || '#4F46E5'}"></span>
+          <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${col.color || '#7D53FF'}"></span>
           <span class="truncate">${escapeHtml(col.name)}</span>
         </span>
         <div class="flex items-center gap-1.5">
@@ -726,12 +726,12 @@ function renderReelsGrid() {
   if (state.reels.length === 0) {
     grid.innerHTML = `
       <div class="col-span-1 md:col-span-2 xl:col-span-3 py-20 text-center flex flex-col items-center justify-center">
-        <div class="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3 shadow-inner">
+        <div class="w-16 h-16 rounded-2xl bg-[#7D53FF]/10 flex items-center justify-center text-[#7D53FF] mb-3 shadow-inner">
           <i data-lucide="film" class="w-8 h-8"></i>
         </div>
         <h3 class="font-semibold text-base text-gray-900">No reels found in this view</h3>
         <p class="text-xs text-gray-500 max-w-sm mt-1 mb-4">Paste an Instagram Reel link or upload your own 9:16 reference video to start building your creative vault.</p>
-        <button onclick="openAddReelModal()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition flex items-center gap-2">
+        <button onclick="openAddReelModal()" class="px-4 py-2 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white text-xs font-semibold shadow-md shadow-[#7D53FF]/20 transition flex items-center gap-2">
           <i data-lucide="plus" class="w-4 h-4"></i> Add Your First Reel
         </button>
       </div>
@@ -744,7 +744,7 @@ function renderReelsGrid() {
   state.reels.forEach(reel => {
     const isSelected = state.selectedReel && state.selectedReel.id === reel.id;
     const primaryCol = reel.primary_collection;
-    const colColor = primaryCol?.color || '#4F46E5';
+    const colColor = primaryCol?.color || '#7D53FF';
     const colName = primaryCol?.name || 'Inspiration';
 
     // Status Indicator
@@ -775,7 +775,7 @@ function renderReelsGrid() {
 
           <!-- Hover Action Overlay -->
           <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-            <div class="w-12 h-12 rounded-full bg-white/95 text-indigo-600 shadow-xl flex items-center justify-center transform group-hover:scale-110 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-white/95 text-[#7D53FF] shadow-xl flex items-center justify-center transform group-hover:scale-110 transition-transform">
               <i data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>
             </div>
           </div>
@@ -799,7 +799,7 @@ function renderReelsGrid() {
             <button onclick="event.stopPropagation(); toggleFavorite(${reel.id})" class="p-1.5 rounded-lg hover:bg-gray-100 transition ${reel.is_favorite ? 'text-amber-500' : 'hover:text-gray-600'}" title="Toggle Favorite">
               <i data-lucide="star" class="w-3.5 h-3.5 ${reel.is_favorite ? 'fill-current' : ''}"></i>
             </button>
-            <button onclick="event.stopPropagation(); toggleWatchLater(${reel.id})" class="p-1.5 rounded-lg hover:bg-gray-100 transition ${reel.is_watch_later ? 'text-indigo-600' : 'hover:text-gray-600'}" title="Watch Later">
+            <button onclick="event.stopPropagation(); toggleWatchLater(${reel.id})" class="p-1.5 rounded-lg hover:bg-gray-100 transition ${reel.is_watch_later ? 'text-[#7D53FF]' : 'hover:text-gray-600'}" title="Watch Later">
               <i data-lucide="clock" class="w-3.5 h-3.5 ${reel.is_watch_later ? 'fill-current' : ''}"></i>
             </button>
           </div>
@@ -854,7 +854,7 @@ function renderRightPreview(reel) {
   }
 
   const primaryCol = reel.primary_collection;
-  const colColor = primaryCol?.color || '#4F46E5';
+  const colColor = primaryCol?.color || '#7D53FF';
 
   // Native Video Player for All Reels
   const videoSrc = reel.video_url || `/api/reels/${reel.id}/video`;
@@ -869,7 +869,7 @@ function renderRightPreview(reel) {
   let tagsHtml = '';
   if (reel.tags && reel.tags.length > 0) {
     reel.tags.forEach(t => {
-      tagsHtml += `<span class="text-[11px] font-medium bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg">#${escapeHtml(t.name)}</span>`;
+      tagsHtml += `<span class="text-[11px] font-medium bg-[#7D53FF]/10 text-[#7D53FF] border border-[#7D53FF]/20 px-2.5 py-1 rounded-lg">#${escapeHtml(t.name)}</span>`;
     });
   } else {
     tagsHtml = `<span class="text-xs text-gray-400 italic">No tags added yet</span>`;
@@ -901,10 +901,10 @@ function renderRightPreview(reel) {
         <button onclick="toggleFavorite(${reel.id})" class="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition ${reel.is_favorite ? 'text-amber-500 bg-amber-50 border-amber-200' : 'text-gray-500'}" title="Favorite">
           <i data-lucide="star" class="w-4 h-4 ${reel.is_favorite ? 'fill-current' : ''}"></i>
         </button>
-        <button onclick="toggleWatchLater(${reel.id})" class="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition ${reel.is_watch_later ? 'text-indigo-600 bg-indigo-50 border-indigo-200' : 'text-gray-500'}" title="Watch Later">
+        <button onclick="toggleWatchLater(${reel.id})" class="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition ${reel.is_watch_later ? 'text-[#7D53FF] bg-[#7D53FF]/10 border-[#7D53FF]/30' : 'text-gray-500'}" title="Watch Later">
           <i data-lucide="clock" class="w-4 h-4 ${reel.is_watch_later ? 'fill-current' : ''}"></i>
         </button>
-        <button onclick="toggleArchive(${reel.id})" class="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition ${reel.is_archived ? 'text-purple-600 bg-purple-50' : 'text-gray-500'}" title="Archive">
+        <button onclick="toggleArchive(${reel.id})" class="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition ${reel.is_archived ? 'text-[#7D53FF] bg-[#7D53FF]/10 border-[#7D53FF]/30' : 'text-gray-500'}" title="Archive">
           <i data-lucide="archive" class="w-4 h-4"></i>
         </button>
         <button onclick="deleteReel(${reel.id})" class="p-2 rounded-xl border border-gray-200 hover:bg-red-50 text-gray-500 hover:text-red-600 transition" title="Delete">
@@ -922,7 +922,7 @@ function renderRightPreview(reel) {
       <div class="space-y-1.5">
         <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Collection</p>
         <div class="flex items-center gap-2">
-          <select id="previewCollectionSelect" onchange="assignCollection(${reel.id}, this.value)" class="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-indigo-500">
+          <select id="previewCollectionSelect" onchange="assignCollection(${reel.id}, this.value)" class="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#7D53FF]">
             <option value="">Uncategorized</option>
             ${state.collections.map(c => `<option value="${c.id}" ${primaryCol?.id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
           </select>
@@ -936,7 +936,7 @@ function renderRightPreview(reel) {
       <div class="space-y-2">
         <div class="flex items-center justify-between">
           <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Tags</p>
-          <button onclick="promptAddTag(${reel.id})" class="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+          <button onclick="promptAddTag(${reel.id})" class="text-[11px] font-semibold text-[#7D53FF] hover:text-[#6C40E8] flex items-center gap-1">
             <i data-lucide="plus" class="w-3 h-3"></i> Add Tag
           </button>
         </div>
@@ -947,7 +947,7 @@ function renderRightPreview(reel) {
 
       <!-- Primary CTA: Add to Collection / Move -->
       <div class="pt-2">
-        <button onclick="document.getElementById('previewCollectionSelect').focus()" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2">
+        <button onclick="document.getElementById('previewCollectionSelect').focus()" class="w-full py-2.5 rounded-xl bg-[#7D53FF] hover:bg-[#6C40E8] text-white text-xs font-bold shadow-md shadow-[#7D53FF]/20 transition flex items-center justify-center gap-2">
           <i data-lucide="folder-input" class="w-4 h-4"></i>
           <span>ADD TO COLLECTION</span>
         </button>
@@ -1092,10 +1092,10 @@ function handleSortChange(sort) {
 function updateNavActiveState(name) {
   document.querySelectorAll('.nav-main-btn').forEach(btn => {
     if (btn.dataset.nav === name) {
-      btn.classList.add('bg-indigo-600/20', 'text-indigo-400', 'font-bold');
+      btn.classList.add('bg-[#7D53FF]/20', 'text-[#B6FF00]', 'font-bold');
       btn.classList.remove('text-gray-400');
     } else {
-      btn.classList.remove('bg-indigo-600/20', 'text-indigo-400', 'font-bold');
+      btn.classList.remove('bg-[#7D53FF]/20', 'text-[#B6FF00]', 'font-bold');
       btn.classList.add('text-gray-400');
     }
   });
@@ -1118,8 +1118,8 @@ async function handleUrlValidation(url) {
   }
 
   feedback.innerHTML = `
-    <span class="text-xs text-indigo-600 flex items-center gap-1.5 font-medium">
-      <div class="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <span class="text-xs text-[#7D53FF] flex items-center gap-1.5 font-medium">
+      <div class="w-3.5 h-3.5 border-2 border-[#7D53FF] border-t-transparent rounded-full animate-spin"></div>
       Validating link and extracting metadata...
     </span>
   `;
@@ -1258,7 +1258,7 @@ async function handleVideoFileUpload(file) {
 async function submitNewCollection() {
   const name = document.getElementById('newColNameInput')?.value.trim();
   const desc = document.getElementById('newColDescInput')?.value.trim();
-  const color = document.getElementById('newColColorInput')?.value || '#4F46E5';
+  const color = document.getElementById('newColColorInput')?.value || '#7D53FF';
 
   if (!name) {
     alert('Please provide a collection name');
@@ -1360,7 +1360,7 @@ function markAllNotificationsAsRead() {
     badge.className = 'text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full';
   }
   document.querySelectorAll('#notificationsList > div').forEach(item => {
-    item.classList.remove('bg-indigo-50/50', 'border-indigo-100/50');
+    item.classList.remove('bg-[#7D53FF]/5', 'border-[#7D53FF]/20');
     item.classList.add('bg-white', 'border-gray-100');
   });
   showToast('All notifications marked as read');
@@ -1421,14 +1421,14 @@ function setupGlobalEventListeners() {
     });
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.classList.add('border-indigo-500', 'bg-indigo-50/50');
+      dropZone.classList.add('border-[#7D53FF]', 'bg-[#7D53FF]/5');
     });
     dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/50');
+      dropZone.classList.remove('border-[#7D53FF]', 'bg-[#7D53FF]/5');
     });
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/50');
+      dropZone.classList.remove('border-[#7D53FF]', 'bg-[#7D53FF]/5');
       if (e.dataTransfer.files?.[0]) {
         handleVideoFileUpload(e.dataTransfer.files[0]);
       }
