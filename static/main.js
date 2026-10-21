@@ -87,9 +87,11 @@ async function initUserSession() {
 
 function updateSidebarUserProfile(user) {
   const avatarEl = document.getElementById('sidebarUserAvatar');
+  const mobAvatarEl = document.getElementById('mobileBottomUserAvatar');
   const nameEl = document.getElementById('sidebarUserName');
   const roleEl = document.getElementById('sidebarUserRole');
   if (avatarEl && user.avatar_url) avatarEl.src = user.avatar_url;
+  if (mobAvatarEl && user.avatar_url) mobAvatarEl.src = user.avatar_url;
   if (nameEl && user.display_name) nameEl.innerText = user.display_name;
   if (roleEl) roleEl.innerText = user.role || user.email || 'Pro Library';
 }
@@ -641,11 +643,15 @@ async function loadReels() {
     renderReelsGrid();
     updateReelCount(data.count || 0);
 
-    // Auto-select first reel if none selected or selected reel is filtered out
+    // Auto-select first reel on desktop if none selected or selected reel is filtered out
     if (state.reels.length > 0) {
       const stillExists = state.selectedReel && state.reels.some(r => r.id === state.selectedReel.id);
       if (!stillExists) {
-        selectReel(state.reels[0].id);
+        if (window.innerWidth >= 1280) {
+          selectReel(state.reels[0].id);
+        } else {
+          state.selectedReel = null;
+        }
       } else {
         renderRightPreview(state.selectedReel);
       }
@@ -813,7 +819,7 @@ function renderReelsGrid() {
   if (window.lucide) lucide.createIcons();
 }
 
-// Select Reel and Update Right Preview Panel (352px Fixed)
+// Select Reel and Update Right Preview Panel
 function selectReel(id) {
   const reel = state.reels.find(r => r.id === id);
   if (!reel) return;
@@ -826,6 +832,27 @@ function selectReel(id) {
   if (card) card.classList.add('active-reel');
 
   renderRightPreview(reel);
+
+  // On mobile & tablet (< 1280px), open preview as full-screen modal
+  if (window.innerWidth < 1280) {
+    const aside = document.getElementById('rightPreviewAside');
+    if (aside) {
+      aside.classList.remove('hidden');
+      aside.classList.add('fixed', 'inset-0', 'z-50', 'w-full', 'h-full', 'flex');
+      aside.scrollTop = 0;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+}
+
+function closeMobilePreview() {
+  const aside = document.getElementById('rightPreviewAside');
+  if (aside) {
+    aside.classList.add('hidden');
+    aside.classList.remove('fixed', 'inset-0', 'z-50', 'w-full', 'h-full', 'flex');
+  }
+  const video = document.getElementById('previewPlayerVideo');
+  if (video) video.pause();
 }
 
 // Render Right Preview Panel Details
@@ -876,7 +903,21 @@ function renderRightPreview(reel) {
   }
 
   container.innerHTML = `
-    <div class="space-y-4">
+    <div class="space-y-4 pb-12 xl:pb-0">
+      
+      <!-- Mobile Close / Back Bar (Visible on Mobile & Tablet < 1280px) -->
+      <div class="xl:hidden flex items-center justify-between pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-[#7D53FF]/15 text-[#7D53FF] flex items-center justify-center">
+            <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+          </div>
+          <span class="font-bold text-xs text-[#242834]">Now Playing</span>
+        </div>
+        <button type="button" onclick="closeMobilePreview()" class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+          <span>Close</span>
+        </button>
+      </div>
       
       <!-- Video Player Frame (9:16 Aspect Preserved) -->
       ${mediaPlayerHtml}
@@ -1059,6 +1100,7 @@ function filterByStatus(status) {
   state.activeTag = null;
   updateNavActiveState(status);
   loadReels();
+  if (window.innerWidth < 1024) closeMobileSidebar();
 }
 
 function filterByCollection(colId) {
@@ -1068,6 +1110,7 @@ function filterByCollection(colId) {
   renderCollectionsSidebar();
   updateNavActiveState('collections');
   loadReels();
+  if (window.innerWidth < 1024) closeMobileSidebar();
 }
 
 function filterByMediaType(type) {
@@ -1300,6 +1343,43 @@ async function deleteCollection(id, name) {
   }
 }
 
+// Mobile Navigation & Drawer Helpers
+function openMobileSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('mobileSidebarBackdrop');
+  if (sidebar) sidebar.classList.remove('-translate-x-full');
+  if (backdrop) backdrop.classList.remove('hidden');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('mobileSidebarBackdrop');
+  if (sidebar) sidebar.classList.add('-translate-x-full');
+  if (backdrop) backdrop.classList.add('hidden');
+}
+
+function toggleMobileSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (sidebar && sidebar.classList.contains('-translate-x-full')) {
+    openMobileSidebar();
+  } else {
+    closeMobileSidebar();
+  }
+}
+
+function updateMobileBottomNav(tab) {
+  const home = document.getElementById('mobNavHome');
+  const fav = document.getElementById('mobNavFav');
+  if (!home || !fav) return;
+  if (tab === 'fav') {
+    fav.className = 'flex flex-col items-center gap-0.5 py-1 text-[#B6FF00] font-bold transition';
+    home.className = 'flex flex-col items-center gap-0.5 py-1 text-gray-400 hover:text-white transition';
+  } else {
+    home.className = 'flex flex-col items-center gap-0.5 py-1 text-[#B6FF00] font-bold transition';
+    fav.className = 'flex flex-col items-center gap-0.5 py-1 text-gray-400 hover:text-white transition';
+  }
+}
+
 // Modals UI Helpers
 function openAddReelModal() {
   document.getElementById('addReelModal')?.classList.remove('hidden');
@@ -1463,6 +1543,8 @@ function setupGlobalEventListeners() {
       closeNewCollectionModal();
       closePwaShortcutModal();
       closeProfileSettingsModal();
+      closeMobilePreview();
+      closeMobileSidebar();
       const dropdown = document.getElementById('notificationsDropdown');
       if (dropdown) dropdown.classList.add('hidden');
     }
@@ -1473,6 +1555,19 @@ function setupGlobalEventListeners() {
         e.preventDefault();
         vid.paused ? vid.play() : vid.pause();
       }
+    }
+  });
+
+  // Responsive window resize cleanup
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 1280) {
+      const aside = document.getElementById('rightPreviewAside');
+      if (aside && aside.classList.contains('fixed')) {
+        aside.classList.remove('fixed', 'inset-0', 'z-50', 'w-full', 'h-full');
+      }
+    }
+    if (window.innerWidth >= 1024) {
+      closeMobileSidebar();
     }
   });
 }
