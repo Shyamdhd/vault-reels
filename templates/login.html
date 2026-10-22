@@ -56,9 +56,49 @@
                   radial-gradient(circle at 50% 50%, rgba(125, 83, 255, 0.08) 0%, transparent 60%),
                   #242834;
     }
+    /* Designer Signature Typography (Helvetica + Display Font) */
+    .signature-line {
+      font-family: 'Helvetica Neue', Helvetica, 'Space Grotesk', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      letter-spacing: 0.16em;
+    }
+    @keyframes pulseSubtle {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.02); opacity: 0.95; }
+    }
+    .animate-pulse-subtle {
+      animation: pulseSubtle 2.5s ease-in-out infinite;
+    }
   </style>
 </head>
 <body class="mesh-gradient min-h-screen text-gray-200 flex flex-col justify-between selection:bg-[#B6FF00] selection:text-[#242834]">
+
+  <!-- OPENING LAUNCH SPLASH (App & Website) -->
+  <div id="vaultLaunchSplash" onclick="dismissLaunchSplash()" class="fixed inset-0 z-[100] bg-[#1C202B] flex flex-col items-center justify-center select-none transition-opacity duration-700 cursor-pointer">
+    <div class="flex flex-col items-center text-center space-y-4 px-6 animate-pulse-subtle">
+      <!-- Vault Brand Jewel -->
+      <div class="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#7D53FF] via-[#8F66FF] to-[#B6FF00] p-0.5 shadow-2xl shadow-[#7D53FF]/40 flex items-center justify-center transform hover:scale-105 transition">
+        <div class="w-full h-full bg-[#242834] rounded-[14px] flex items-center justify-center">
+          <i data-lucide="bookmark" class="w-8 h-8 fill-[#B6FF00] text-[#B6FF00]"></i>
+        </div>
+      </div>
+
+      <!-- App Name & Subtitle -->
+      <div class="space-y-1">
+        <h1 class="text-2xl font-bold tracking-tight text-white font-brand">VAULT</h1>
+        <p class="text-[11px] text-gray-400 font-medium tracking-wide">Creative Reels & Posts Library</p>
+      </div>
+
+      <!-- Designer Credit Line in Helvetica & Display Font -->
+      <div class="pt-5">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-lg">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#B6FF00] animate-ping"></span>
+          <span class="signature-line text-[11px] text-gray-300 font-medium tracking-widest">
+            design and made by <span class="text-[#B6FF00] font-semibold">shyam sharma</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- TOP BRAND NAV -->
   <header class="p-6 lg:px-12 flex items-center justify-between">
@@ -171,8 +211,11 @@
   </main>
 
   <!-- FOOTER -->
-  <footer class="p-6 text-center text-xs text-gray-500 border-t border-slate-800/60">
-    <p>© 2026 Vault Creative Library. Built for video creators, editors, and art directors.</p>
+  <footer class="p-6 text-center text-xs text-gray-500 border-t border-slate-800/60 space-y-2">
+    <p class="signature-line text-[10.5px] text-gray-400 tracking-wider">
+      design and made by <span class="text-[#B6FF00] font-semibold">shyam sharma</span>
+    </p>
+    <p class="text-[11px] text-gray-500">© 2026 Vault Creative Library. Built for video creators, editors, and art directors.</p>
   </footer>
 
   <script>
@@ -284,8 +327,21 @@
       }
     }
 
+    function dismissLaunchSplash() {
+      const splash = document.getElementById('vaultLaunchSplash');
+      if (splash && !splash.classList.contains('opacity-0')) {
+        splash.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+          try { splash.remove(); } catch (e) {}
+        }, 700);
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
+      // Dismiss launch screen smoothly
+      setTimeout(dismissLaunchSplash, 1000);
+      setTimeout(dismissLaunchSplash, 2200);
     });
   </script>
 </body>
