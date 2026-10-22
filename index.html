@@ -50,9 +50,37 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="/static/styles.css?v=7">
+  <link rel="stylesheet" href="/static/styles.css?v=8">
 </head>
 <body class="bg-[#F5F7FA] text-[#242834] h-screen flex flex-col overflow-hidden selection:bg-[#B6FF00] selection:text-[#242834]">
+
+  <!-- OPENING LAUNCH SPLASH (App & Website) -->
+  <div id="vaultLaunchSplash" onclick="dismissLaunchSplash()" class="fixed inset-0 z-[100] bg-[#1C202B] flex flex-col items-center justify-center select-none transition-opacity duration-700 cursor-pointer">
+    <div class="flex flex-col items-center text-center space-y-4 px-6 animate-pulse-subtle">
+      <!-- Vault Brand Jewel -->
+      <div class="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#7D53FF] via-[#8F66FF] to-[#B6FF00] p-0.5 shadow-2xl shadow-[#7D53FF]/40 flex items-center justify-center transform hover:scale-105 transition">
+        <div class="w-full h-full bg-[#242834] rounded-[14px] flex items-center justify-center">
+          <i data-lucide="bookmark" class="w-8 h-8 fill-[#B6FF00] text-[#B6FF00]"></i>
+        </div>
+      </div>
+
+      <!-- App Name & Subtitle -->
+      <div class="space-y-1">
+        <h1 class="text-2xl font-bold tracking-tight text-white font-brand">VAULT</h1>
+        <p class="text-[11px] text-gray-400 font-medium tracking-wide">Creative Reels & Posts Library</p>
+      </div>
+
+      <!-- Designer Credit Line in Helvetica & Display Font -->
+      <div class="pt-5">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-lg">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#B6FF00] animate-ping"></span>
+          <span class="signature-line text-[11px] text-gray-300 font-medium tracking-widest">
+            design and made by <span class="text-[#B6FF00] font-semibold">shyam sharma</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Mobile Sidebar Backdrop Overlay -->
   <div id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs hidden lg:hidden transition-opacity"></div>
@@ -155,6 +183,13 @@
               <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
             </button>
           </div>
+        </div>
+
+        <!-- Designer Signature (Helvetica + Display Font) -->
+        <div class="px-2 pt-2.5 pb-1 border-t border-[#313746]/60 text-center select-none">
+          <p class="signature-line text-[9.5px] text-gray-400 tracking-wider">
+            design and made by <span class="text-[#B6FF00] font-semibold">shyam sharma</span>
+          </p>
         </div>
       </div>
 
@@ -803,7 +838,7 @@
   </div>
 
   <!-- Main JavaScript App Controller -->
-  <script src="/static/main.js?v=13"></script>
+  <script src="/static/main.js?v=14"></script>
   <script>
     lucide.createIcons();
   </script>
