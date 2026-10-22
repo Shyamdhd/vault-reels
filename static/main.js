@@ -37,8 +37,22 @@ async function authFetch(url, options = {}) {
   return res;
 }
 
+// Launch Splash Screen Dismissal
+function dismissLaunchSplash() {
+  const splash = document.getElementById('vaultLaunchSplash');
+  if (splash && !splash.classList.contains('opacity-0')) {
+    splash.classList.add('opacity-0', 'pointer-events-none');
+    setTimeout(() => {
+      try { splash.remove(); } catch (e) {}
+    }, 700);
+  }
+}
+
 // Initialize App on DOM Load
 document.addEventListener('DOMContentLoaded', async () => {
+  // Safety timeout: ensure splash never blocks UI even on slow connections
+  setTimeout(() => dismissLaunchSplash(), 2200);
+
   // Initialize and verify user session
   await initUserSession();
 
@@ -51,6 +65,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTags();
 
   setupGlobalEventListeners();
+
+  // Smoothly fade out launch screen after initialization
+  setTimeout(() => {
+    dismissLaunchSplash();
+  }, 1000);
 });
 
 // User Session Management
