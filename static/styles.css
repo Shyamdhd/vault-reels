@@ -136,3 +136,18 @@ body {
 .border-vault-slate { border-color: #242834; }
 .border-vault-lime { border-color: #B6FF00; }
 .border-vault-purple { border-color: #7D53FF; }
+
+/* Designer Signature Typography (Helvetica + Display Font) */
+.signature-line {
+  font-family: 'Helvetica Neue', Helvetica, 'Space Grotesk', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  letter-spacing: 0.16em;
+}
+
+@keyframes pulseSubtle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.95; }
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 2.5s ease-in-out infinite;
+}
