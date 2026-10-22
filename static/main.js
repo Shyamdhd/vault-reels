@@ -12,6 +12,7 @@ let state = {
   mediaType: 'all', // 'all', 'video', 'link'
   sort: 'latest',
   searchQuery: '',
+  playerMode: 'auto', // 'auto', 'video', 'embed'
   user: {
     name: 'Alex Rivera',
     handle: '@alex_creates',
@@ -768,7 +769,7 @@ function renderReelsGrid() {
         
         <!-- Thumbnail Container (4:5 Aspect Ratio) -->
         <div class="relative aspect-thumbnail w-full bg-slate-900 overflow-hidden">
-          <img src="${escapeHtml(reel.thumbnail_url)}" alt="${escapeHtml(reel.title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" loading="lazy">
+          <img src="${escapeHtml(reel.thumbnail_url)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&h=750&q=80';" alt="${escapeHtml(reel.title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" loading="lazy">
           
           <!-- Gradient Scrim -->
           <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20"></div>
@@ -862,6 +863,28 @@ function extractInstagramShortcode(url) {
   return match ? match[1] : null;
 }
 
+function switchPlayerMode(mode, reelId) {
+  state.playerMode = mode;
+  const reel = (state.reels && state.reels.find(r => r.id === reelId)) || state.selectedReel;
+  if (reel) renderRightPreview(reel);
+}
+
+function handleVideoPlayerError(reelId, shortcode) {
+  console.warn(`[Vault Player] Direct MP4 stream unavailable/expired for reel #${reelId}. Seamlessly switching to Instagram Embed Player.`);
+  if (shortcode) {
+    const frame = document.getElementById('playerFrameContainer');
+    if (frame) {
+      frame.innerHTML = `
+        <iframe id="previewPlayerIframe" src="https://www.instagram.com/reel/${escapeHtml(shortcode)}/embed/" 
+                class="w-full h-full border-0 rounded-2xl bg-black" 
+                frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen="true"></iframe>
+      `;
+    }
+    state.playerMode = 'embed';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
 function renderRightPreview(reel) {
   const container = document.getElementById('rightPreviewContainer');
   if (!container) return;
@@ -883,14 +906,55 @@ function renderRightPreview(reel) {
   const primaryCol = reel.primary_collection;
   const colColor = primaryCol?.color || '#7D53FF';
 
-  // Native Video Player for All Reels
+  const shortcode = extractInstagramShortcode(reel.original_url || reel.normalized_url);
+  const embedUrl = shortcode ? `https://www.instagram.com/reel/${shortcode}/embed/` : null;
+  const hasDirectVideo = !!(reel.video_url || (reel.save_status === 'saved_video'));
   const videoSrc = reel.video_url || `/api/reels/${reel.id}/video`;
-  const mediaPlayerHtml = `
-    <div class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
-      <video id="previewPlayerVideo" src="${escapeHtml(videoSrc)}" poster="${escapeHtml(reel.thumbnail_url || '')}" 
-             controls playsinline loop autoplay class="w-full h-full object-cover"></video>
-    </div>
-  `;
+
+  // Dual-mode resolution: use user preference if set, otherwise stream if available, else embed
+  const isEmbedMode = state.playerMode === 'embed' || (!hasDirectVideo && embedUrl);
+
+  let mediaPlayerHtml = '';
+  if (isEmbedMode && embedUrl) {
+    mediaPlayerHtml = `
+      <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md">
+        <iframe id="previewPlayerIframe" src="${escapeHtml(embedUrl)}" 
+                class="w-full h-full border-0 rounded-2xl bg-black" 
+                frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen="true"></iframe>
+      </div>
+    `;
+  } else {
+    mediaPlayerHtml = `
+      <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
+        <video id="previewPlayerVideo" src="${escapeHtml(videoSrc)}" poster="${escapeHtml(reel.thumbnail_url || '')}" 
+               controls playsinline loop autoplay 
+               onerror="handleVideoPlayerError(${reel.id}, '${shortcode || ''}')"
+               class="w-full h-full object-cover"></video>
+      </div>
+    `;
+  }
+
+  // Player mode switcher
+  let playerToggleHtml = '';
+  if (shortcode) {
+    playerToggleHtml = `
+      <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-100/90 rounded-xl mb-1 text-xs">
+        <span class="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
+          <i data-lucide="tv" class="w-3.5 h-3.5 text-[#7D53FF]"></i> Player Mode
+        </span>
+        <div class="flex items-center gap-1 bg-gray-200/80 p-0.5 rounded-lg">
+          <button type="button" onclick="switchPlayerMode('video', ${reel.id})" 
+                  class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${!isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
+            Stream MP4
+          </button>
+          <button type="button" onclick="switchPlayerMode('embed', ${reel.id})" 
+                  class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
+            Instagram Native
+          </button>
+        </div>
+      </div>
+    `;
+  }
 
   // Tags list HTML
   let tagsHtml = '';
@@ -919,6 +983,9 @@ function renderRightPreview(reel) {
         </button>
       </div>
       
+      <!-- Player Mode Switcher -->
+      ${playerToggleHtml}
+
       <!-- Video Player Frame (9:16 Aspect Preserved) -->
       ${mediaPlayerHtml}
 
@@ -1193,13 +1260,43 @@ async function handleUrlValidation(url) {
       </div>
     `;
 
+    // Render Live Preview Card inside the modal
+    const previewCard = document.getElementById('modalReelPreviewCard');
+    if (previewCard) {
+      previewCard.classList.remove('hidden');
+      previewCard.innerHTML = `
+        <div class="p-3 bg-slate-50 border border-[#7D53FF]/25 rounded-2xl flex items-center gap-3 shadow-xs">
+          <div class="w-14 h-18 rounded-xl overflow-hidden bg-black shrink-0 relative shadow-sm border border-black/10">
+            <img src="${escapeHtml(data.thumbnail_url)}" alt="Preview" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-black/25 flex items-center justify-center">
+              <i data-lucide="play" class="w-4 h-4 text-[#B6FF00] fill-[#B6FF00]"></i>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0 space-y-0.5">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold text-[#7D53FF] truncate">${escapeHtml(data.creator_username || '@creator')}</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-gray-200/70 text-gray-700 font-semibold">${escapeHtml(data.duration || '0:30')}</span>
+            </div>
+            <p class="text-xs font-bold text-gray-900 truncate leading-snug">${escapeHtml(data.title)}</p>
+            <p class="text-[11px] text-gray-500 truncate">${escapeHtml(data.description || 'Instagram Reel reference')}</p>
+          </div>
+          <div class="shrink-0 text-right">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${data.video_url ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-purple-100 text-[#7D53FF] border border-[#7D53FF]/20'}">
+              <i data-lucide="${data.video_url ? 'video' : 'play-circle'}" class="w-3 h-3"></i>
+              ${data.video_url ? 'Video Ready' : 'Embed Ready'}
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
     // Auto-fill form
     const titleInput = document.getElementById('reelTitleInput');
     const creatorInput = document.getElementById('reelCreatorInput');
     const descInput = document.getElementById('reelDescInput');
     const videoInput = document.getElementById('uploadedVideoUrlInput');
-    if (titleInput && !titleInput.value) titleInput.value = data.title;
-    if (creatorInput && !creatorInput.value) creatorInput.value = data.creator_username;
+    if (titleInput) titleInput.value = data.title;
+    if (creatorInput) creatorInput.value = data.creator_username;
     if (descInput && !descInput.value) descInput.value = data.description;
     if (videoInput && data.video_url) videoInput.value = data.video_url;
 
@@ -1212,15 +1309,25 @@ async function handleUrlValidation(url) {
 // Submit Add Reel Form
 async function submitAddReel() {
   const url = document.getElementById('reelUrlInput')?.value.trim();
-  const title = document.getElementById('reelTitleInput')?.value.trim();
-  const creator = document.getElementById('reelCreatorInput')?.value.trim();
-  const desc = document.getElementById('reelDescInput')?.value.trim();
+  let title = document.getElementById('reelTitleInput')?.value.trim();
+  let creator = document.getElementById('reelCreatorInput')?.value.trim();
+  let desc = document.getElementById('reelDescInput')?.value.trim();
   const collectionId = document.getElementById('addReelCollectionSelect')?.value;
   const rawTags = document.getElementById('reelTagsInput')?.value.trim();
   const videoUrl = document.getElementById('uploadedVideoUrlInput')?.value.trim() || verifiedUrlData?.video_url;
 
   if (!title) {
-    alert('Please enter a title for the reference.');
+    title = verifiedUrlData?.title || (url ? `Instagram Reel (${extractInstagramShortcode(url) || 'Reference'})` : '');
+  }
+  if (!creator) {
+    creator = verifiedUrlData?.creator_username || '@instagram_creator';
+  }
+  if (!desc) {
+    desc = verifiedUrlData?.description || 'Saved Instagram Reel inspiration.';
+  }
+
+  if (!title && !url) {
+    alert('Please provide an Instagram link or title.');
     return;
   }
 
@@ -1228,8 +1335,8 @@ async function submitAddReel() {
 
   const payload = {
     original_url: url,
-    title,
-    creator_username: creator || '@creator',
+    title: title || 'Instagram Reel Reference',
+    creator_username: creator,
     description: desc,
     collection_id: collectionId ? parseInt(collectionId, 10) : null,
     tags,
@@ -1387,6 +1494,17 @@ function openAddReelModal() {
 
 function closeAddReelModal() {
   document.getElementById('addReelModal')?.classList.add('hidden');
+  const previewCard = document.getElementById('modalReelPreviewCard');
+  if (previewCard) {
+    previewCard.classList.add('hidden');
+    previewCard.innerHTML = '';
+  }
+  const feedback = document.getElementById('urlValidationFeedback');
+  if (feedback) {
+    feedback.innerHTML = '<span class="text-[11px] text-gray-400">Links are verified for duplicate entries and public metadata.</span>';
+  }
+  const urlInput = document.getElementById('reelUrlInput');
+  if (urlInput) urlInput.value = '';
   verifiedUrlData = null;
 }
 

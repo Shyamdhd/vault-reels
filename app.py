@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import html
 import sqlite3
 import urllib.request
 import urllib.parse
@@ -237,47 +238,135 @@ def format_reel(row, conn):
     return reel
 
 def extract_reel_media_info(url):
-    """Extracts direct video MP4 URL, thumbnail, creator, and title via yt-dlp."""
+    """
+    Robust multi-strategy Instagram metadata and video extractor.
+    Strategy 1: Fast Meta Tag / OpenGraph scraping (sub-second): extracts real Instagram CDN thumbnail, creator handle, title, and caption.
+    Strategy 2: yt-dlp probe (5s timeout): extracts direct MP4 video stream if available.
+    """
     if not url:
         return None
+
+    clean_url = url.strip()
+    match = re.search(r'instagram\.com/(?:reel|p|reels)/([A-Za-z0-9_-]+)', clean_url)
+    shortcode = match.group(1) if match else None
+    canonical_url = f"https://www.instagram.com/reel/{shortcode}/" if shortcode else clean_url
+
+    info = {
+        'shortcode': shortcode,
+        'original_url': canonical_url,
+        'title': None,
+        'creator_username': None,
+        'description': None,
+        'thumbnail_url': None,
+        'video_url': None,
+        'duration': '0:30'
+    }
+
+    # Strategy 1: Fast Meta Tag / OpenGraph Extraction via Facebook User-Agent (< 500ms)
     try:
-        import yt_dlp
-        ydl_opts = {
-            'skip_download': True,
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': False,
-            'socket_timeout': 10
+        headers = {
+            'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9'
         }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            video_url = info.get('url')
-            if not video_url and 'formats' in info and info['formats']:
-                for fmt in reversed(info['formats']):
-                    if fmt.get('url') and (fmt.get('vcodec') != 'none' or 'mp4' in fmt.get('ext', '')):
-                        video_url = fmt['url']
-                        break
-                if not video_url:
-                    video_url = info['formats'][-1].get('url')
+        req = urllib.request.Request(canonical_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            content = resp.read().decode('utf-8', errors='ignore')
 
-            thumb = info.get('thumbnail')
-            title = info.get('title')
-            uploader = info.get('uploader') or info.get('channel')
-            creator_handle = f"@{uploader}" if uploader and not uploader.startswith('@') else (uploader or '@instagram_creator')
-            duration_sec = info.get('duration')
-            duration_str = f"0:{int(duration_sec):02d}" if duration_sec else "0:30"
+            # Real Instagram Thumbnail
+            m_img = re.search(r'<meta\s+(?:property|name)="og:image"\s+content="([^"]+)"', content)
+            if m_img:
+                info['thumbnail_url'] = html.unescape(m_img.group(1))
 
-            return {
-                'video_url': video_url,
-                'thumbnail_url': thumb,
-                'title': title,
-                'creator_username': creator_handle,
-                'description': info.get('description'),
-                'duration': duration_str
-            }
+            # Direct video if present in og tags
+            m_vid = re.search(r'<meta\s+(?:property|name)="og:video(?::secure_url)?"\s+content="([^"]+)"', content)
+            if m_vid:
+                info['video_url'] = html.unescape(m_vid.group(1))
+
+            # Creator & Title
+            m_title = re.search(r'<meta\s+(?:property|name)="twitter:title"\s+content="([^"]+)"', content) or \
+                      re.search(r'<meta\s+(?:property|name)="og:title"\s+content="([^"]+)"', content)
+            if m_title:
+                raw_title = html.unescape(m_title.group(1)).strip()
+                # Parse creator handle if present like (@username)
+                u_match = re.search(r'\(@([A-Za-z0-9_.]+)\)', raw_title) or re.search(r'by\s+([A-Za-z0-9_.]+)', raw_title)
+                if u_match:
+                    info['creator_username'] = f"@{u_match.group(1)}"
+                elif ' on Instagram:' in raw_title:
+                    parts = raw_title.split(' on Instagram:', 1)
+                    info['creator_username'] = f"@{parts[0].strip().replace(' ', '_').lower()}"
+
+                # Clean Title
+                if ' on Instagram:' in raw_title:
+                    info['title'] = raw_title.split(' on Instagram:', 1)[1].strip(' ":\'')
+                elif ' • Instagram' in raw_title:
+                    info['title'] = raw_title.split(' • Instagram', 1)[0].strip()
+                else:
+                    info['title'] = raw_title
+
+            # Caption / Description
+            m_desc = re.search(r'<meta\s+(?:property|name)="description"\s+content="([^"]+)"', content) or \
+                     re.search(r'<meta\s+(?:property|name)="og:description"\s+content="([^"]+)"', content)
+            if m_desc:
+                info['description'] = html.unescape(m_desc.group(1)).strip()
     except Exception as e:
-        print(f"[Media extraction note] {e}")
-        return None
+        print(f"[Meta extraction note] {e}")
+
+    # Strategy 2: yt-dlp probe for direct MP4 stream with short timeout
+    if not info.get('video_url'):
+        try:
+            import yt_dlp
+            ydl_opts = {
+                'skip_download': True,
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': False,
+                'socket_timeout': 5
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl_data = ydl.extract_info(canonical_url, download=False)
+                vid = ydl_data.get('url')
+                if not vid and 'formats' in ydl_data and ydl_data['formats']:
+                    for fmt in reversed(ydl_data['formats']):
+                        if fmt.get('url') and (fmt.get('vcodec') != 'none' or 'mp4' in fmt.get('ext', '')):
+                            vid = fmt['url']
+                            break
+                    if not vid:
+                        vid = ydl_data['formats'][-1].get('url')
+
+                if vid:
+                    info['video_url'] = vid
+
+                if not info.get('thumbnail_url') and ydl_data.get('thumbnail'):
+                    info['thumbnail_url'] = ydl_data['thumbnail']
+
+                if not info.get('title') and ydl_data.get('title'):
+                    info['title'] = ydl_data['title']
+
+                if not info.get('creator_username'):
+                    uploader = ydl_data.get('uploader') or ydl_data.get('channel')
+                    if uploader:
+                        info['creator_username'] = f"@{uploader}" if not uploader.startswith('@') else uploader
+
+                if not info.get('description') and ydl_data.get('description'):
+                    info['description'] = ydl_data['description']
+
+                if ydl_data.get('duration'):
+                    info['duration'] = f"0:{int(ydl_data['duration']):02d}"
+        except Exception as e:
+            print(f"[yt-dlp probe note] {e}")
+
+    # Fallbacks for any missing fields
+    if not info.get('creator_username'):
+        info['creator_username'] = '@instagram_creator'
+    if not info.get('title'):
+        info['title'] = f"Reel by {info['creator_username']} ({shortcode or 'Reference'})"
+    if not info.get('thumbnail_url'):
+        info['thumbnail_url'] = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&h=750&q=80'
+    if not info.get('description'):
+        info['description'] = 'Saved Instagram Reel inspiration. Metadata preserved from shared link.'
+
+    return info
 
 # =========================================================================
 # API ROUTES (STRICT MULTI-TENANT ISOLATION & PERMISSION CHECKS)
@@ -481,7 +570,9 @@ def parse_instagram_url():
 
     conn.close()
 
-    # Extract metadata via yt-dlp
+    # Extract metadata via robust multi-strategy extractor
+    media_info = extract_reel_media_info(raw_url) or extract_reel_media_info(normalized_url)
+
     creator_handle = '@instagram_creator'
     title = f"Instagram Creative Reference ({shortcode or 'Reel'})"
     description = "Saved Instagram Reel inspiration. Metadata preserved from shared link."
@@ -489,7 +580,6 @@ def parse_instagram_url():
     extracted_video_url = None
     duration = '0:30'
 
-    media_info = extract_reel_media_info(raw_url) or extract_reel_media_info(normalized_url)
     if media_info:
         title = media_info.get('title') or title
         creator_handle = media_info.get('creator_username') or creator_handle
@@ -497,6 +587,9 @@ def parse_instagram_url():
         extracted_video_url = media_info.get('video_url')
         description = media_info.get('description') or description
         duration = media_info.get('duration') or duration
+        shortcode = media_info.get('shortcode') or shortcode
+
+    embed_url = f"https://www.instagram.com/reel/{shortcode}/embed/" if shortcode else None
 
     return jsonify({
         'duplicate': False,
@@ -507,6 +600,7 @@ def parse_instagram_url():
         'description': description,
         'thumbnail_url': thumbnail,
         'video_url': extracted_video_url,
+        'embed_url': embed_url,
         'duration': duration,
         'save_status': 'saved_video' if extracted_video_url else 'saved_link'
     })
@@ -529,16 +623,24 @@ def create_reel():
     collection_id = data.get('collection_id')
     tags_list = data.get('tags') or []
 
+    # Auto-extract video stream and rich metadata if missing or using generic placeholders
+    if original_url and (not video_url or not thumbnail_url or 'photo-1618005182384' in thumbnail_url or 'Instagram Creative Reference' in title or creator_username in ('@creator', '@instagram_creator')):
+        media_info = extract_reel_media_info(original_url)
+        if media_info:
+            if not video_url and media_info.get('video_url'):
+                video_url = media_info['video_url']
+            if not thumbnail_url or 'photo-1618005182384' in thumbnail_url:
+                if media_info.get('thumbnail_url'):
+                    thumbnail_url = media_info['thumbnail_url']
+            if (not creator_username or creator_username in ('@creator', '@instagram_creator')) and media_info.get('creator_username'):
+                creator_username = media_info['creator_username']
+            if (not title or 'Instagram Creative Reference' in title) and media_info.get('title'):
+                title = media_info['title']
+            if (not description or 'Metadata preserved from shared link' in description) and media_info.get('description'):
+                description = media_info['description']
+
     if not title:
         return jsonify({'error': 'Title is required'}), 400
-
-    # Auto-extract video stream if missing
-    if not video_url and original_url:
-        media_info = extract_reel_media_info(original_url)
-        if media_info and media_info.get('video_url'):
-            video_url = media_info['video_url']
-            if not thumbnail_url and media_info.get('thumbnail_url'):
-                thumbnail_url = media_info['thumbnail_url']
 
     save_status = data.get('save_status') or ('saved_video' if video_url else 'saved_link')
     normalized_url, _ = normalize_instagram_url(original_url) if original_url else (None, None)
