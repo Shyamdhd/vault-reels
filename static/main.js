@@ -754,10 +754,14 @@ function renderReelsGrid() {
     const colColor = primaryCol?.color || '#7D53FF';
     const colName = primaryCol?.name || 'Inspiration';
 
+    const isPost = reel.media_type === 'post' || reel.save_status === 'saved_post' || isInstagramPostUrl(reel.original_url || reel.normalized_url);
+
     // Status Indicator
     let statusBadge = '';
-    if (reel.save_status === 'saved_video') {
-      statusBadge = `<span class="bg-emerald-500/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1 shadow-sm"><i data-lucide="check" class="w-2.5 h-2.5"></i> Video</span>`;
+    if (isPost) {
+      statusBadge = `<span class="bg-[#7D53FF]/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1 shadow-sm"><i data-lucide="image" class="w-2.5 h-2.5"></i> Post</span>`;
+    } else if (reel.save_status === 'saved_video') {
+      statusBadge = `<span class="bg-emerald-500/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1 shadow-sm"><i data-lucide="film" class="w-2.5 h-2.5"></i> Reel</span>`;
     } else if (reel.save_status === 'saved_link') {
       statusBadge = `<span class="bg-blue-500/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1 shadow-sm"><i data-lucide="link" class="w-2.5 h-2.5"></i> Link</span>`;
     } else {
@@ -777,13 +781,13 @@ function renderReelsGrid() {
           <!-- Top Status & Duration Bar -->
           <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
             ${statusBadge}
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/60 text-white/90 backdrop-blur-md border border-white/10">${reel.duration || '0:30'}</span>
+            ${!isPost && reel.duration ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/60 text-white/90 backdrop-blur-md border border-white/10">${reel.duration}</span>` : `<span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/60 text-white/90 backdrop-blur-md border border-white/10 flex items-center gap-1"><i data-lucide="image" class="w-2.5 h-2.5"></i> Photo</span>`}
           </div>
 
           <!-- Hover Action Overlay -->
           <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
             <div class="w-12 h-12 rounded-full bg-white/95 text-[#7D53FF] shadow-xl flex items-center justify-center transform group-hover:scale-110 transition-transform">
-              <i data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>
+              <i data-lucide="${isPost ? 'eye' : 'play'}" class="w-5 h-5 ${isPost ? '' : 'fill-current ml-0.5'}"></i>
             </div>
           </div>
 
@@ -859,8 +863,13 @@ function closeMobilePreview() {
 // Render Right Preview Panel Details
 function extractInstagramShortcode(url) {
   if (!url) return null;
-  const match = url.match(/instagram\.com\/(?:reel|p|reels)\/([A-Za-z0-9_-]+)/);
+  const match = url.match(/instagram\.com\/(?:reel|p|reels|share\/p|share\/reel)\/([A-Za-z0-9_-]+)/);
   return match ? match[1] : null;
+}
+
+function isInstagramPostUrl(url) {
+  if (!url) return false;
+  return url.includes('/p/') || url.includes('/share/p/');
 }
 
 function switchPlayerMode(mode, reelId) {
@@ -869,13 +878,14 @@ function switchPlayerMode(mode, reelId) {
   if (reel) renderRightPreview(reel);
 }
 
-function handleVideoPlayerError(reelId, shortcode) {
-  console.warn(`[Vault Player] Direct MP4 stream unavailable/expired for reel #${reelId}. Seamlessly switching to Instagram Embed Player.`);
+function handleVideoPlayerError(reelId, shortcode, isPost = false) {
+  console.warn(`[Vault Player] Direct stream unavailable for item #${reelId}. Seamlessly switching to Instagram Embed Player.`);
   if (shortcode) {
     const frame = document.getElementById('playerFrameContainer');
+    const base = isPost ? 'p' : 'reel';
     if (frame) {
       frame.innerHTML = `
-        <iframe id="previewPlayerIframe" src="https://www.instagram.com/reel/${escapeHtml(shortcode)}/embed/" 
+        <iframe id="previewPlayerIframe" src="https://www.instagram.com/${base}/${escapeHtml(shortcode)}/embed/" 
                 class="w-full h-full border-0 rounded-2xl bg-black" 
                 frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen="true"></iframe>
       `;
@@ -895,8 +905,8 @@ function renderRightPreview(reel) {
         <div class="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-300 mb-3">
           <i data-lucide="mouse-pointer-click" class="w-8 h-8"></i>
         </div>
-        <p class="font-semibold text-gray-700 text-sm">Select any reel to preview</p>
-        <p class="text-xs text-gray-400 mt-1">Watch video, inspect tags, organize collections, and copy source inspiration links.</p>
+        <p class="font-semibold text-gray-700 text-sm">Select any reel or post to preview</p>
+        <p class="text-xs text-gray-400 mt-1">Watch video, inspect photos, swipe carousels, view tags, and copy source links.</p>
       </div>
     `;
     if (window.lucide) lucide.createIcons();
@@ -906,54 +916,110 @@ function renderRightPreview(reel) {
   const primaryCol = reel.primary_collection;
   const colColor = primaryCol?.color || '#7D53FF';
 
+  const isPost = reel.media_type === 'post' || reel.save_status === 'saved_post' || isInstagramPostUrl(reel.original_url || reel.normalized_url);
   const shortcode = extractInstagramShortcode(reel.original_url || reel.normalized_url);
-  const embedUrl = shortcode ? `https://www.instagram.com/reel/${shortcode}/embed/` : null;
-  const hasDirectVideo = !!(reel.video_url || (reel.save_status === 'saved_video'));
+  const baseType = isPost ? 'p' : 'reel';
+  const embedUrl = shortcode ? `https://www.instagram.com/${baseType}/${shortcode}/embed/` : null;
+  const hasDirectVideo = !isPost && !!(reel.video_url || (reel.save_status === 'saved_video'));
   const videoSrc = reel.video_url || `/api/reels/${reel.id}/video`;
 
-  // Dual-mode resolution: use user preference if set, otherwise stream if available, else embed
-  const isEmbedMode = state.playerMode === 'embed' || (!hasDirectVideo && embedUrl);
+  // Dual-mode resolution:
+  let isEmbedMode = false;
+  if (state.playerMode === 'embed') {
+    isEmbedMode = true;
+  } else if (state.playerMode === 'photo' && isPost) {
+    isEmbedMode = false;
+  } else if (state.playerMode === 'video' && !isPost) {
+    isEmbedMode = false;
+  } else {
+    isEmbedMode = isPost ? true : (!hasDirectVideo && !!embedUrl);
+  }
 
   let mediaPlayerHtml = '';
-  if (isEmbedMode && embedUrl) {
-    mediaPlayerHtml = `
-      <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md">
-        <iframe id="previewPlayerIframe" src="${escapeHtml(embedUrl)}" 
-                class="w-full h-full border-0 rounded-2xl bg-black" 
-                frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen="true"></iframe>
-      </div>
-    `;
+  if (isPost) {
+    if (!isEmbedMode) {
+      // High-resolution photo view
+      mediaPlayerHtml = `
+        <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
+          <img src="${escapeHtml(reel.thumbnail_url)}" alt="${escapeHtml(reel.title)}" class="w-full h-full object-contain bg-slate-950">
+          <a href="${escapeHtml(reel.thumbnail_url)}" target="_blank" class="absolute bottom-3 right-3 px-2.5 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md transition shadow-md" title="Open full resolution photo">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-[#B6FF00]"></i>
+            <span>Full Photo</span>
+          </a>
+        </div>
+      `;
+    } else {
+      // Interactive Instagram Post Embed (Swipe Carousel, Likes, Full Text)
+      mediaPlayerHtml = `
+        <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md">
+          <iframe id="previewPlayerIframe" src="${escapeHtml(embedUrl || `https://www.instagram.com/p/${shortcode}/embed/`)}" 
+                  class="w-full h-full border-0 rounded-2xl bg-black" 
+                  frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen="true"></iframe>
+        </div>
+      `;
+    }
   } else {
-    mediaPlayerHtml = `
-      <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
-        <video id="previewPlayerVideo" src="${escapeHtml(videoSrc)}" poster="${escapeHtml(reel.thumbnail_url || '')}" 
-               controls playsinline loop autoplay 
-               onerror="handleVideoPlayerError(${reel.id}, '${shortcode || ''}')"
-               class="w-full h-full object-cover"></video>
-      </div>
-    `;
+    // Reel / Video Mode
+    if (isEmbedMode && embedUrl) {
+      mediaPlayerHtml = `
+        <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md">
+          <iframe id="previewPlayerIframe" src="${escapeHtml(embedUrl)}" 
+                  class="w-full h-full border-0 rounded-2xl bg-black" 
+                  frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen="true"></iframe>
+        </div>
+      `;
+    } else {
+      mediaPlayerHtml = `
+        <div id="playerFrameContainer" class="relative w-full aspect-reel-player rounded-2xl bg-black overflow-hidden shadow-md flex items-center justify-center group">
+          <video id="previewPlayerVideo" src="${escapeHtml(videoSrc)}" poster="${escapeHtml(reel.thumbnail_url || '')}" 
+                 controls playsinline loop autoplay 
+                 onerror="handleVideoPlayerError(${reel.id}, '${shortcode || ''}', false)"
+                 class="w-full h-full object-cover"></video>
+        </div>
+      `;
+    }
   }
 
   // Player mode switcher
   let playerToggleHtml = '';
   if (shortcode) {
-    playerToggleHtml = `
-      <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-100/90 rounded-xl mb-1 text-xs">
-        <span class="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
-          <i data-lucide="tv" class="w-3.5 h-3.5 text-[#7D53FF]"></i> Player Mode
-        </span>
-        <div class="flex items-center gap-1 bg-gray-200/80 p-0.5 rounded-lg">
-          <button type="button" onclick="switchPlayerMode('video', ${reel.id})" 
-                  class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${!isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
-            Stream MP4
-          </button>
-          <button type="button" onclick="switchPlayerMode('embed', ${reel.id})" 
-                  class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
-            Instagram Native
-          </button>
+    if (isPost) {
+      playerToggleHtml = `
+        <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-100/90 rounded-xl mb-1 text-xs">
+          <span class="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
+            <i data-lucide="image" class="w-3.5 h-3.5 text-[#7D53FF]"></i> Post View
+          </span>
+          <div class="flex items-center gap-1 bg-gray-200/80 p-0.5 rounded-lg">
+            <button type="button" onclick="switchPlayerMode('embed', ${reel.id})" 
+                    class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
+              Interactive Post
+            </button>
+            <button type="button" onclick="switchPlayerMode('photo', ${reel.id})" 
+                    class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${!isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
+              Photo Only
+            </button>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      playerToggleHtml = `
+        <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-100/90 rounded-xl mb-1 text-xs">
+          <span class="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
+            <i data-lucide="tv" class="w-3.5 h-3.5 text-[#7D53FF]"></i> Reel Player
+          </span>
+          <div class="flex items-center gap-1 bg-gray-200/80 p-0.5 rounded-lg">
+            <button type="button" onclick="switchPlayerMode('video', ${reel.id})" 
+                    class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${!isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
+              Stream MP4
+            </button>
+            <button type="button" onclick="switchPlayerMode('embed', ${reel.id})" 
+                    class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ${isEmbedMode ? 'bg-[#7D53FF] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}">
+              Instagram Native
+            </button>
+          </div>
+        </div>
+      `;
+    }
   }
 
   // Tags list HTML
@@ -972,10 +1038,10 @@ function renderRightPreview(reel) {
       <!-- Mobile Close / Back Bar (Visible on Mobile & Tablet < 1280px) -->
       <div class="xl:hidden flex items-center justify-between pb-3 border-b border-gray-100">
         <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg bg-[#7D53FF]/15 text-[#7D53FF] flex items-center justify-center">
-            <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+          <div class="w-7 h-7 rounded-lg ${isPost ? 'bg-indigo-100 text-[#7D53FF]' : 'bg-[#7D53FF]/15 text-[#7D53FF]'} flex items-center justify-center">
+            <i data-lucide="${isPost ? 'image' : 'play'}" class="w-3.5 h-3.5 ${isPost ? '' : 'fill-current'}"></i>
           </div>
-          <span class="font-bold text-xs text-[#242834]">Now Playing</span>
+          <span class="font-bold text-xs text-[#242834]">${isPost ? 'Viewing Post' : 'Now Playing'}</span>
         </div>
         <button type="button" onclick="closeMobilePreview()" class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold flex items-center gap-1.5 transition">
           <i data-lucide="x" class="w-4 h-4"></i>
@@ -986,7 +1052,7 @@ function renderRightPreview(reel) {
       <!-- Player Mode Switcher -->
       ${playerToggleHtml}
 
-      <!-- Video Player Frame (9:16 Aspect Preserved) -->
+      <!-- Media Display Frame (9:16 Aspect Preserved) -->
       ${mediaPlayerHtml}
 
       <!-- Header & Title -->
@@ -1254,9 +1320,12 @@ async function handleUrlValidation(url) {
     }
 
     verifiedUrlData = data;
+    const isPost = data.is_post || data.media_type === 'post' || isInstagramPostUrl(url);
+    const kindLabel = isPost ? 'Post' : 'Reel';
+
     feedback.innerHTML = `
       <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-1.5 font-medium">
-        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Valid Instagram Reel reference verified!
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Valid Instagram ${kindLabel} reference verified!
       </div>
     `;
 
@@ -1269,21 +1338,21 @@ async function handleUrlValidation(url) {
           <div class="w-14 h-18 rounded-xl overflow-hidden bg-black shrink-0 relative shadow-sm border border-black/10">
             <img src="${escapeHtml(data.thumbnail_url)}" alt="Preview" class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-black/25 flex items-center justify-center">
-              <i data-lucide="play" class="w-4 h-4 text-[#B6FF00] fill-[#B6FF00]"></i>
+              <i data-lucide="${isPost ? 'image' : 'play'}" class="w-4 h-4 text-[#B6FF00] ${isPost ? '' : 'fill-[#B6FF00]'}"></i>
             </div>
           </div>
           <div class="flex-1 min-w-0 space-y-0.5">
             <div class="flex items-center gap-1.5">
               <span class="text-[11px] font-bold text-[#7D53FF] truncate">${escapeHtml(data.creator_username || '@creator')}</span>
-              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-gray-200/70 text-gray-700 font-semibold">${escapeHtml(data.duration || '0:30')}</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-gray-200/70 text-gray-700 font-semibold">${isPost ? 'Photo / Carousel' : escapeHtml(data.duration || '0:30')}</span>
             </div>
             <p class="text-xs font-bold text-gray-900 truncate leading-snug">${escapeHtml(data.title)}</p>
-            <p class="text-[11px] text-gray-500 truncate">${escapeHtml(data.description || 'Instagram Reel reference')}</p>
+            <p class="text-[11px] text-gray-500 truncate">${escapeHtml(data.description || `Instagram ${kindLabel} reference`)}</p>
           </div>
           <div class="shrink-0 text-right">
-            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${data.video_url ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-purple-100 text-[#7D53FF] border border-[#7D53FF]/20'}">
-              <i data-lucide="${data.video_url ? 'video' : 'play-circle'}" class="w-3 h-3"></i>
-              ${data.video_url ? 'Video Ready' : 'Embed Ready'}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${isPost ? 'bg-[#7D53FF]/15 text-[#7D53FF] border border-[#7D53FF]/25' : (data.video_url ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-purple-100 text-[#7D53FF] border border-[#7D53FF]/20')}">
+              <i data-lucide="${isPost ? 'image' : (data.video_url ? 'video' : 'play-circle')}" class="w-3 h-3"></i>
+              ${isPost ? 'Post Ready' : (data.video_url ? 'Video Ready' : 'Embed Ready')}
             </span>
           </div>
         </div>
@@ -1306,7 +1375,7 @@ async function handleUrlValidation(url) {
   }
 }
 
-// Submit Add Reel Form
+// Submit Add Reel / Post Form
 async function submitAddReel() {
   const url = document.getElementById('reelUrlInput')?.value.trim();
   let title = document.getElementById('reelTitleInput')?.value.trim();
@@ -1316,14 +1385,19 @@ async function submitAddReel() {
   const rawTags = document.getElementById('reelTagsInput')?.value.trim();
   const videoUrl = document.getElementById('uploadedVideoUrlInput')?.value.trim() || verifiedUrlData?.video_url;
 
+  const isPost = verifiedUrlData?.is_post || verifiedUrlData?.media_type === 'post' || isInstagramPostUrl(url);
+  const kindLabel = isPost ? 'Post' : 'Reel';
+  const mediaType = isPost ? 'post' : (videoUrl ? 'video' : 'reel');
+  const saveStatus = isPost ? 'saved_post' : (videoUrl ? 'saved_video' : 'saved_link');
+
   if (!title) {
-    title = verifiedUrlData?.title || (url ? `Instagram Reel (${extractInstagramShortcode(url) || 'Reference'})` : '');
+    title = verifiedUrlData?.title || (url ? `Instagram ${kindLabel} (${extractInstagramShortcode(url) || 'Reference'})` : '');
   }
   if (!creator) {
     creator = verifiedUrlData?.creator_username || '@instagram_creator';
   }
   if (!desc) {
-    desc = verifiedUrlData?.description || 'Saved Instagram Reel inspiration.';
+    desc = verifiedUrlData?.description || `Saved Instagram ${kindLabel} inspiration.`;
   }
 
   if (!title && !url) {
@@ -1335,14 +1409,15 @@ async function submitAddReel() {
 
   const payload = {
     original_url: url,
-    title: title || 'Instagram Reel Reference',
+    title: title || `Instagram ${kindLabel} Reference`,
     creator_username: creator,
     description: desc,
     collection_id: collectionId ? parseInt(collectionId, 10) : null,
     tags,
     video_url: videoUrl || null,
     thumbnail_url: verifiedUrlData?.thumbnail_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&h=750&q=80',
-    save_status: videoUrl ? 'saved_video' : 'saved_link'
+    media_type: mediaType,
+    save_status: saveStatus
   };
 
   try {
@@ -1358,13 +1433,13 @@ async function submitAddReel() {
       data = { error: `Server responded with status ${res.status}` };
     }
     if (res.ok) {
-      showToast('Reel saved to Vault!');
+      showToast(`${kindLabel} saved to Vault!`);
       closeAddReelModal();
       await loadReels();
       await loadCollections();
       if (data.reel) selectReel(data.reel.id);
     } else {
-      alert(data.error || 'Failed to save reel');
+      alert(data.error || 'Failed to save item');
     }
   } catch (err) {
     console.error('Save error:', err);

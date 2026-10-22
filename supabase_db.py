@@ -100,18 +100,16 @@ def get_supabase_reels(user_id, collection_id=None, media_type=None, status=None
         elif status == 'watch_later':
             q = q.eq('is_watch_later', True)
 
-        if media_type and media_type in ['video', 'link', 'image']:
-            q = q.eq('media_type', media_type)
-
-        if sort == 'oldest':
-            q = q.order('created_at', desc=False)
-        elif sort == 'title':
-            q = q.order('title', desc=False)
-        else:
-            q = q.order('created_at', desc=True)
-
         res = q.execute().data or []
         reels = [format_supabase_reel(r) for r in res if r]
+
+        if media_type:
+            if media_type == 'reel':
+                reels = [r for r in reels if (r.get('media_type') in ['reel', 'video'] or '/reel/' in (r.get('original_url') or '') or '/reels/' in (r.get('original_url') or ''))]
+            elif media_type == 'post':
+                reels = [r for r in reels if (r.get('media_type') in ['post', 'image'] or '/p/' in (r.get('original_url') or ''))]
+            elif media_type in ['video', 'link', 'image']:
+                reels = [r for r in reels if r.get('media_type') == media_type]
 
         # In-memory filter for collection & search
         if collection_id and collection_id != 'all':

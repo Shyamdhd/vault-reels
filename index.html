@@ -275,18 +275,19 @@
       <div class="px-3 sm:px-6 lg:px-8 py-2.5 sm:py-4 bg-[#F5F7FA] border-b border-gray-200/60 flex items-center justify-between gap-2 shrink-0">
         <div class="flex items-center gap-2">
           <div>
-            <h1 class="text-sm sm:text-lg font-bold text-[#242834] leading-tight">All Reels</h1>
+            <h1 class="text-sm sm:text-lg font-bold text-[#242834] leading-tight">All Inspiration</h1>
             <p id="headerReelsCount" class="text-[10px] sm:text-xs text-[#64748B]">Loading library...</p>
           </div>
         </div>
 
         <!-- Filter Tabs & Sort Controls -->
         <div class="flex items-center gap-1.5 sm:gap-3 ml-auto">
-          <!-- All / Video / Link Tabs -->
+          <!-- All / Reels / Posts / Videos Tabs -->
           <div class="flex items-center bg-gray-100 p-0.5 sm:p-1 rounded-xl text-xs">
             <button onclick="filterByMediaType('all')" data-type="all" class="media-type-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white text-gray-900 shadow-sm font-semibold transition text-[11px] sm:text-xs">All</button>
+            <button onclick="filterByMediaType('reel')" data-type="reel" class="media-type-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-gray-500 hover:text-gray-900 font-medium transition text-[11px] sm:text-xs">Reels</button>
+            <button onclick="filterByMediaType('post')" data-type="post" class="media-type-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-gray-500 hover:text-gray-900 font-medium transition text-[11px] sm:text-xs">Posts</button>
             <button onclick="filterByMediaType('video')" data-type="video" class="media-type-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-gray-500 hover:text-gray-900 font-medium transition text-[11px] sm:text-xs">Videos</button>
-            <button onclick="filterByMediaType('link')" data-type="link" class="media-type-btn px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-gray-500 hover:text-gray-900 font-medium transition text-[11px] sm:text-xs">Links</button>
           </div>
 
           <!-- Sort Dropdown -->
@@ -357,8 +358,8 @@
             <i data-lucide="plus" class="w-5 h-5"></i>
           </div>
           <div>
-            <h3 class="font-bold text-sm sm:text-base text-gray-900">Save Instagram Reel to Vault</h3>
-            <p class="text-[11px] sm:text-xs text-gray-500">Paste an Instagram link or upload 9:16 video</p>
+            <h3 class="font-bold text-sm sm:text-base text-gray-900">Save Instagram Reel or Post</h3>
+            <p class="text-[11px] sm:text-xs text-gray-500">Paste any Instagram Reel, Post, or Carousel link, or upload 9:16 video</p>
           </div>
         </div>
         <button onclick="closeAddReelModal()" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
@@ -368,10 +369,10 @@
 
       <!-- Instagram Link Input with Auto-Validation -->
       <div class="space-y-2">
-        <label class="block text-xs font-semibold text-gray-700">Instagram Reel URL</label>
+        <label class="block text-xs font-semibold text-gray-700">Instagram URL (Reel, Post, or Carousel)</label>
         <div class="relative">
           <i data-lucide="link-2" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-          <input type="text" id="reelUrlInput" placeholder="https://www.instagram.com/reel/C3_example/" 
+          <input type="text" id="reelUrlInput" placeholder="https://www.instagram.com/reel/... or https://www.instagram.com/p/..." 
             class="w-full bg-gray-50 text-xs text-gray-900 rounded-xl pl-9 pr-4 py-2.5 border border-gray-200 focus:outline-none focus:border-[#7D53FF] focus:bg-white transition">
         </div>
         <div id="urlValidationFeedback">
@@ -802,7 +803,7 @@
   </div>
 
   <!-- Main JavaScript App Controller -->
-  <script src="/static/main.js?v=12"></script>
+  <script src="/static/main.js?v=13"></script>
   <script>
     lucide.createIcons();
   </script>

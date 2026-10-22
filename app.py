@@ -69,10 +69,12 @@ def allowed_file(filename):
 def normalize_instagram_url(url):
     """Normalize Instagram Reel and Post URLs for duplicate detection."""
     url = url.strip()
-    match = re.search(r'instagram\.com/(?:reel|p|reels)/([A-Za-z0-9_-]+)', url)
+    match = re.search(r'instagram\.com/(?:reel|p|reels|share/p|share/reel)/([A-Za-z0-9_-]+)', url)
     if match:
         code = match.group(1)
-        return f"https://www.instagram.com/reel/{code}/", code
+        is_post = bool('/p/' in url or 'share/p/' in url)
+        base = 'p' if is_post else 'reel'
+        return f"https://www.instagram.com/{base}/{code}/", code
     return url, None
 
 # --- STRICT SERVER-SIDE AUTHENTICATION & USER RESOLUTION ---
@@ -247,19 +249,25 @@ def extract_reel_media_info(url):
         return None
 
     clean_url = url.strip()
-    match = re.search(r'instagram\.com/(?:reel|p|reels)/([A-Za-z0-9_-]+)', clean_url)
+    match = re.search(r'instagram\.com/(?:reel|p|reels|share/p|share/reel)/([A-Za-z0-9_-]+)', clean_url)
     shortcode = match.group(1) if match else None
-    canonical_url = f"https://www.instagram.com/reel/{shortcode}/" if shortcode else clean_url
+    is_post = bool('/p/' in clean_url or 'share/p/' in clean_url)
+    media_type = 'post' if is_post else 'reel'
+    base_path = 'p' if is_post else 'reel'
+    canonical_url = f"https://www.instagram.com/{base_path}/{shortcode}/" if shortcode else clean_url
 
     info = {
         'shortcode': shortcode,
         'original_url': canonical_url,
+        'is_post': is_post,
+        'media_type': media_type,
+        'embed_url': f"https://www.instagram.com/{base_path}/{shortcode}/embed/" if shortcode else None,
         'title': None,
         'creator_username': None,
         'description': None,
         'thumbnail_url': None,
         'video_url': None,
-        'duration': '0:30'
+        'duration': '0:30' if not is_post else None
     }
 
     # Strategy 1: Fast Meta Tag / OpenGraph Extraction via Facebook User-Agent (< 500ms)
@@ -360,11 +368,13 @@ def extract_reel_media_info(url):
     if not info.get('creator_username'):
         info['creator_username'] = '@instagram_creator'
     if not info.get('title'):
-        info['title'] = f"Reel by {info['creator_username']} ({shortcode or 'Reference'})"
+        prefix = 'Post' if is_post else 'Reel'
+        info['title'] = f"{prefix} by {info['creator_username']} ({shortcode or 'Reference'})"
     if not info.get('thumbnail_url'):
         info['thumbnail_url'] = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&h=750&q=80'
     if not info.get('description'):
-        info['description'] = 'Saved Instagram Reel inspiration. Metadata preserved from shared link.'
+        prefix = 'Post' if is_post else 'Reel'
+        info['description'] = f"Saved Instagram {prefix} inspiration. Metadata preserved from shared link."
 
     return info
 
@@ -431,9 +441,14 @@ def list_reels():
         query += " AND t.name = ?"
         params.append(tag_name)
 
-    if media_type and media_type in ['video', 'link', 'image']:
-        query += " AND r.media_type = ?"
-        params.append(media_type)
+    if media_type:
+        if media_type == 'reel':
+            query += " AND (r.media_type IN ('reel', 'video') OR r.original_url LIKE '%/reel/%' OR r.original_url LIKE '%/reels/%')"
+        elif media_type == 'post':
+            query += " AND (r.media_type IN ('post', 'image') OR r.original_url LIKE '%/p/%')"
+        elif media_type in ['video', 'link', 'image']:
+            query += " AND r.media_type = ?"
+            params.append(media_type)
 
     if search:
         query += " AND (r.title LIKE ? OR r.description LIKE ? OR r.creator_username LIKE ? OR t.name LIKE ?)"
@@ -573,12 +588,15 @@ def parse_instagram_url():
     # Extract metadata via robust multi-strategy extractor
     media_info = extract_reel_media_info(raw_url) or extract_reel_media_info(normalized_url)
 
+    is_post = bool('/p/' in raw_url or '/p/' in (normalized_url or ''))
+    media_type = 'post' if is_post else 'reel'
+    prefix = 'Post' if is_post else 'Reel'
     creator_handle = '@instagram_creator'
-    title = f"Instagram Creative Reference ({shortcode or 'Reel'})"
-    description = "Saved Instagram Reel inspiration. Metadata preserved from shared link."
+    title = f"Instagram {prefix} Reference ({shortcode or 'Reference'})"
+    description = f"Saved Instagram {prefix} inspiration. Metadata preserved from shared link."
     thumbnail = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&h=750&q=80"
     extracted_video_url = None
-    duration = '0:30'
+    duration = '0:30' if not is_post else None
 
     if media_info:
         title = media_info.get('title') or title
@@ -588,13 +606,18 @@ def parse_instagram_url():
         description = media_info.get('description') or description
         duration = media_info.get('duration') or duration
         shortcode = media_info.get('shortcode') or shortcode
+        is_post = media_info.get('is_post', is_post)
+        media_type = media_info.get('media_type', media_type)
 
-    embed_url = f"https://www.instagram.com/reel/{shortcode}/embed/" if shortcode else None
+    base_path = 'p' if is_post else 'reel'
+    embed_url = f"https://www.instagram.com/{base_path}/{shortcode}/embed/" if shortcode else None
 
     return jsonify({
         'duplicate': False,
         'normalized_url': normalized_url,
         'shortcode': shortcode,
+        'is_post': is_post,
+        'media_type': media_type,
         'title': title,
         'creator_username': creator_handle,
         'description': description,
@@ -602,7 +625,7 @@ def parse_instagram_url():
         'video_url': extracted_video_url,
         'embed_url': embed_url,
         'duration': duration,
-        'save_status': 'saved_video' if extracted_video_url else 'saved_link'
+        'save_status': 'saved_post' if is_post else ('saved_video' if extracted_video_url else 'saved_link')
     })
 
 @app.route('/api/reels', methods=['POST'])
@@ -642,7 +665,20 @@ def create_reel():
     if not title:
         return jsonify({'error': 'Title is required'}), 400
 
-    save_status = data.get('save_status') or ('saved_video' if video_url else 'saved_link')
+    media_type = data.get('media_type')
+    is_post = bool('/p/' in original_url or 'share/p/' in original_url or media_type in ['post', 'image'])
+    if not media_type:
+        media_type = 'post' if is_post else ('video' if video_url else 'reel')
+
+    save_status = data.get('save_status')
+    if not save_status:
+        if is_post:
+            save_status = 'saved_post'
+        elif video_url:
+            save_status = 'saved_video'
+        else:
+            save_status = 'saved_link'
+
     normalized_url, _ = normalize_instagram_url(original_url) if original_url else (None, None)
 
     # Supabase PostgreSQL save
